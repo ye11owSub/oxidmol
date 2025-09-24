@@ -1,15 +1,32 @@
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "veaksam", email = "exactlythatguy@gmail.com" }
+ ]
+
 [build-system]
 requires = ["maturin>=1.9,<2.0"]
 build-backend = "maturin"
 
 [project]
 name = "cordyceps"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
+dependencies = [
+    "pyqt6>=6.9.1",
+]
+
 [tool.maturin]
+python-source = "python"
+module-name = "cordyceps.lsd"
 features = ["pyo3/extension-module"]
+
+dependencies = []
+
+[project.scripts]
+cordyceps = "cordyceps:main"
