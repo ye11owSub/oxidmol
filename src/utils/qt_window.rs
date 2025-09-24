@@ -3,7 +3,7 @@ use raw_window_handle::{
     RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowHandle, WindowsDisplayHandle,
     XlibDisplayHandle, XlibWindowHandle,
 };
-use std::{num::NonZeroIsize, ptr::NonNull};
+use std::{ffi::c_ulong, num::NonZeroIsize, ptr::NonNull};
 
 pub struct QtWindowHandle {
     window_handle: RawWindowHandle,
@@ -26,7 +26,7 @@ impl QtWindowHandle {
                 )
             }
             _ if cfg!(target_os = "linux") => {
-                let xlib_handle = XlibWindowHandle::new(raw_window_handle as u64);
+                let xlib_handle = XlibWindowHandle::new(raw_window_handle as c_ulong);
                 let display_handle = XlibDisplayHandle::new(None, 0);
                 (
                     RawWindowHandle::Xlib(xlib_handle),

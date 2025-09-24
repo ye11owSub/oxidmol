@@ -3,7 +3,8 @@ from typing import Optional
 from PyQt6.QtGui import QShowEvent
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 from PyQt6.QtCore import Qt, QTimer
-import cordyceps._lib_name as wgpu_integration
+
+from cordyceps import lsd
 
 
 class WgpuWidget(QWidget):
@@ -21,16 +22,14 @@ class WgpuWidget(QWidget):
     def showEvent(self, a0: Optional[QShowEvent]):
         if self.renderer is None:
             self.init_wgpu()
-        self.timer.start(16)  # ~60 FPS
+        self.timer.start(16)
         
     def init_wgpu(self):
         try:
-            # Получаем window handle (HWND на Windows)
             hwnd = int(self.winId())
             width, height = self.width(), self.height()
             
-            # Создаем рендерер через PyO3
-            self.renderer = wgpu_integration.PyWgpuRenderer(hwnd, width, height)
+            self.renderer = lsd.PyWgpuRenderer(hwnd, width, height)
             print("WGSU renderer initialized successfully")
             
         except Exception as e:

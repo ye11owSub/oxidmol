@@ -48,8 +48,7 @@ impl<'a> State<'a> {
             .formats
             .iter()
             .copied()
-            .filter(|f| f.is_srgb())
-            .next()
+            .find(|f| f.is_srgb())
             .unwrap_or(surface_capabilities.formats[0]);
 
         let config = wgpu::SurfaceConfiguration {
@@ -75,13 +74,17 @@ impl<'a> State<'a> {
         }
     }
 
-pub fn render(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn render(&self) -> Result<(), Box<dyn std::error::Error>> {
         let frame = self.surface.get_current_texture()?;
-        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
-        });
+        let view = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
 
         {
             let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -109,6 +112,5 @@ pub fn render(&self) -> Result<(), Box<dyn std::error::Error>> {
         frame.present();
 
         Ok(())
-
     }
 }

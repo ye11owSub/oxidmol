@@ -9,7 +9,7 @@ use pyo3::{wrap_pyfunction, Bound};
 use crate::python::{get_backend_info, PyWgpuRenderer};
 
 #[pymodule]
-#[pyo3(name = "_lib_name")]
+#[pyo3(name = "lsd")]
 fn wgpu_integration_py(_py: Python, module: Bound<'_, PyModule>) -> PyResult<()> {
     init_logging();
 
@@ -54,19 +54,13 @@ mod tests {
 
     #[test]
     fn test_renderer_creation() {
-        // Тесты для базовой функциональности
     }
 
     #[test]
     fn test_error_handling() {
-        // Тесты обработки ошибок
     }
 }
 
-/// Экспорт символов для динамической загрузки
-///
-/// Эта секция гарантирует, что символы будут доступны
-/// для динамической линковки
 #[used]
 #[cfg_attr(target_os = "linux", link_section = ".ctors")]
 #[cfg_attr(target_os = "windows", link_section = ".CRT$XCU")]

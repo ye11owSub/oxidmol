@@ -23,7 +23,7 @@ dependencies = [
 
 [tool.maturin]
 python-source = "python"
-module-name = "cordyceps._lib_name"
+module-name = "cordyceps.lsd"
 features = ["pyo3/extension-module"]
 
 dependencies = []
