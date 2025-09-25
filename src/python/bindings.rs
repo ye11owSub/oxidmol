@@ -69,9 +69,6 @@ impl PyWgpuRenderer {
     #[pyo3(name = "render")]
     /// Render a frame
     ///
-    /// Returns:
-    ///     bool: True if rendering succeeded
-    ///
     /// Raises:
     ///     RuntimeError: If rendering fails
     pub fn py_render(&self) -> PyResult<()> {
@@ -86,7 +83,7 @@ impl PyWgpuRenderer {
     }
 
     #[getter]
-    /// Get current width
+    /// Get current height
     pub fn height(&self) -> u32 {
         self.inner.size.1
     }

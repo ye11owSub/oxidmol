@@ -4,11 +4,11 @@ description = "Add your description here"
 readme = "README.md"
 authors = [
     { name = "veaksam", email = "exactlythatguy@gmail.com" },
-    { name = "veaksam", email = "exactlythatguy@gmail.com" },
+    { name = "alxndrpi" },
 ]
 maintainers = [
     { name = "veaksam", email = "exactlythatguy@gmail.com" },
-    { name = "veaksam", email = "exactlythatguy@gmail.com" },
+    { name = "alxndrpi" },
 ]
 requires-python = ">=3.10,<3.14"
 classifiers = [
@@ -30,17 +30,23 @@ dev = [
 
 [project.gui-scripts]
 cordyceps = "cordyceps:app"
- 
+
 [build-system]
 requires = ["maturin>=1.9,<2.0"]
 build-backend = "maturin"
 
 [tool.maturin]
 python-source = "python"
-module-name = "lsd"
+module-name = "cordyceps.lsd"
 features = ["pyo3/extension-module"]
 # It asks to use Cargo.lock to make the build reproducible
 locked = true
+
+[tool.maturin.package-data]
+"cordyceps" = [
+    "lsd/py.typed",
+    "lsd/*.pyi"
+]
 
 [tool.ruff]
 line-length = 120
@@ -119,5 +125,3 @@ module = [
   "lsd.*",
 ]
 ignore_missing_imports = true
-
-

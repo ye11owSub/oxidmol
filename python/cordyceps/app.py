@@ -1,10 +1,9 @@
-from typing import Optional
-
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QShowEvent
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
-from PyQt6.QtCore import Qt, QTimer
 
-from lsd.lsd import PyWgpuRenderer
+from cordyceps.lsd import PyWgpuRenderer
+
 
 
 class WgpuWidget(QWidget):
@@ -19,7 +18,7 @@ class WgpuWidget(QWidget):
         self.timer = QTimer()
         self.timer.timeout.connect(self.render)
 
-    def showEvent(self, a0: Optional[QShowEvent]):
+    def showEvent(self, a0: QShowEvent | None):
         if self.renderer is None:
             self.init_wgpu()
         self.timer.start(16)
