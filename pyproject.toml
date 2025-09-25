@@ -1,32 +1,123 @@
+[project]
+name = "cordyceps"
 description = "Add your description here"
 readme = "README.md"
 authors = [
-    { name = "veaksam", email = "exactlythatguy@gmail.com" }
- ]
-
-[build-system]
-requires = ["maturin>=1.9,<2.0"]
-build-backend = "maturin"
-
-[project]
-name = "cordyceps"
-requires-python = ">=3.10"
+    { name = "veaksam", email = "exactlythatguy@gmail.com" },
+    { name = "veaksam", email = "exactlythatguy@gmail.com" },
+]
+maintainers = [
+    { name = "veaksam", email = "exactlythatguy@gmail.com" },
+    { name = "veaksam", email = "exactlythatguy@gmail.com" },
+]
+requires-python = ">=3.10,<3.14"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
+
 dependencies = [
     "pyqt6>=6.9.1",
 ]
 
+[dependency-groups]
+dev = [
+    "mypy>=1.18.2",
+    "ruff>=0.13.1",
+]
+
+[project.gui-scripts]
+cordyceps = "cordyceps:app"
+ 
+[build-system]
+requires = ["maturin>=1.9,<2.0"]
+build-backend = "maturin"
+
 [tool.maturin]
 python-source = "python"
-module-name = "cordyceps.lsd"
+module-name = "lsd"
 features = ["pyo3/extension-module"]
+# It asks to use Cargo.lock to make the build reproducible
+locked = true
 
-dependencies = []
+[tool.ruff]
+line-length = 120
+target-version = "py311"
 
-[project.scripts]
-cordyceps = "cordyceps:main"
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
+ignore = [
+  "C408", # Using `dict()` instead of `{}` is ok.
+  "G004", # f-strings in logging are ok.
+  "PLR0904", # No limit on the number of public methods.
+  "PLR0911", # No limit on the number of return statements.
+  "PLR0912", # No limit on the number of branches.
+  "PLR0913", # No limit on the number of arguments.
+  "PLR0914", # No limit on the number of local variables.
+  "PLR0915", # No limit on the number of statements.
+  "PLR0916", # No limit on the number of boolean expressions.
+  "PLR0917", # No limit on the number of positional arguments.
+  "PLR2004", # Magic values are ok (for now).
+  "RET504", # Assignment before return might improve readability.
+  "RUF012", # Using ClassVar is not required.
+  "TRY003", # Long messages in raise are ok.
+]
+extend-safe-fixes = [
+  "PT007",
+  "UP007",
+]
+extend-select = [
+  "ARG",
+  "B",
+  "BLE",
+  "C4",
+  "DTZ",
+  "EXE",
+  "FA",
+  "FLY",
+  "G",
+  "I",
+  "PGH",
+  "PL",
+  "PT",
+  "RET",
+  "RUF",
+  "SIM",
+  "T10",
+  "T20",
+  "TRY",
+  "UP",
+  "W605", # Produces a SyntaxError in python 3.13.
+]
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+
+[tool.mypy]
+explicit_package_bases = true
+extra_checks = true
+check_untyped_defs = true
+# disallow_any_generics = true
+# disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+no_implicit_reexport = true
+strict_equality = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unused_configs = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = [
+  "lsd.*",
+]
+ignore_missing_imports = true
+
+
