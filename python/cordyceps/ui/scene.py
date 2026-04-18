@@ -1,48 +1,46 @@
-from cordyceps.lsd import PyWgpuRenderer
+import logging
+
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QShowEvent
+from PyQt6.QtGui import QResizeEvent, QShowEvent
 from PyQt6.QtWidgets import QWidget
+
+from cordyceps.lsd import PyWgpuRenderer
+
+logger = logging.getLogger(__name__)
 
 
 class WgpuWidget(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_NativeWindow, True)
         self.setAttribute(Qt.WidgetAttribute.WA_PaintOnScreen, True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMinimumSize(640, 480)
 
-        self.renderer = None
+        self.renderer: PyWgpuRenderer | None = None
         self.timer = QTimer()
-        self.timer.timeout.connect(self.render)
+        self.timer.timeout.connect(self._render_frame)
 
-    def showEvent(self, a0: QShowEvent | None):
+    def showEvent(self, a0: QShowEvent | None) -> None:  # noqa: ARG002
         if self.renderer is None:
             self.init_wgpu()
         self.timer.start(16)
 
-    def init_wgpu(self):
+    def init_wgpu(self) -> None:
         try:
             hwnd = int(self.winId())
             width, height = self.width(), self.height()
-
             self.renderer = PyWgpuRenderer(hwnd, width=width, height=height)
-            print("WGSU renderer initialized successfully")
+            logger.info("WGPU renderer initialized successfully")
+        except BaseException:
+            logger.exception("Failed to initialize WGPU")
 
-        except Exception as e:
-            print(f"Failed to initialize WGSU: {e}")
-
-    def render(self):
+    def _render_frame(self) -> None:
         if self.renderer:
             try:
                 self.renderer.render()
-            except Exception as e:
-                print(f"Render error: {e}")
+            except BaseException:
+                logger.exception("Render error")
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if self.renderer:
-            try:
-                self.renderer.resize(self.width(), self.height())
-            except Exception as e:
-                print(f"Resize error: {e}")
+    def resizeEvent(self, a0: QResizeEvent | None) -> None:
+        super().resizeEvent(a0)

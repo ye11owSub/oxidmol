@@ -26,6 +26,8 @@ dependencies = [
 dev = [
     "maturin>=1.9,<2.0",
     "mypy>=1.18.2",
+    "pytest>=8.0",
+    "pytest-qt>=4.0",
     "ruff>=0.13.1",
 ]
 
@@ -105,6 +107,7 @@ extend-select = [
 fixture-parentheses = false
 
 [tool.mypy]
+mypy_path = ["python"]
 explicit_package_bases = true
 extra_checks = true
 check_untyped_defs = true
@@ -120,6 +123,14 @@ warn_redundant_casts = true
 warn_return_any = true
 warn_unused_configs = true
 warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
+addopts = "-v --tb=short"
+markers = [
+    "gpu: marks tests as requiring GPU",
+    "ui: marks tests as UI tests",
+]
 
 [[tool.mypy.overrides]]
 module = [

@@ -8,6 +8,12 @@ pub struct PipelineBuilder {
     vertex_buffer_layouts: Vec<wgpu::VertexBufferLayout<'static>>,
 }
 
+impl Default for PipelineBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PipelineBuilder {
     pub fn new() -> Self {
         PipelineBuilder {
@@ -101,5 +107,135 @@ impl PipelineBuilder {
         };
 
         device.create_render_pipeline(&render_pipeline_descriptor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pipeline_builder_new() {
+        let builder = PipelineBuilder::new();
+
+        assert_eq!(builder.shader_filename, "dummy");
+        assert_eq!(builder.vertex_entry, "dummy");
+        assert_eq!(builder.fragment_entry, "dummy");
+        assert_eq!(builder.pixel_format, wgpu::TextureFormat::Rgba8Unorm);
+        assert!(builder.vertex_buffer_layouts.is_empty());
+    }
+
+    #[test]
+    fn test_set_shader_module() {
+        let mut builder = PipelineBuilder::new();
+
+        builder.set_shader_module("test_shader.wgsl", "vs_main", "fs_main");
+
+        assert_eq!(builder.shader_filename, "test_shader.wgsl");
+        assert_eq!(builder.vertex_entry, "vs_main");
+        assert_eq!(builder.fragment_entry, "fs_main");
+    }
+
+    #[test]
+    fn test_set_pixel_format() {
+        let mut builder = PipelineBuilder::new();
+
+        builder.set_pixel_format(wgpu::TextureFormat::Bgra8Unorm);
+
+        assert_eq!(builder.pixel_format, wgpu::TextureFormat::Bgra8Unorm);
+    }
+
+    #[test]
+    fn test_add_buffer_layout() {
+        let mut builder = PipelineBuilder::new();
+
+        let layout = wgpu::VertexBufferLayout {
+            array_stride: 12,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[],
+        };
+
+        builder.add_buffer_layout(layout);
+
+        assert_eq!(builder.vertex_buffer_layouts.len(), 1);
+        assert_eq!(builder.vertex_buffer_layouts[0].array_stride, 12);
+    }
+
+    #[test]
+    fn test_add_multiple_buffer_layouts() {
+        let mut builder = PipelineBuilder::new();
+
+        let layout1 = wgpu::VertexBufferLayout {
+            array_stride: 12,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[],
+        };
+
+        let layout2 = wgpu::VertexBufferLayout {
+            array_stride: 24,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[],
+        };
+
+        builder.add_buffer_layout(layout1);
+        builder.add_buffer_layout(layout2);
+
+        assert_eq!(builder.vertex_buffer_layouts.len(), 2);
+        assert_eq!(builder.vertex_buffer_layouts[0].array_stride, 12);
+        assert_eq!(builder.vertex_buffer_layouts[1].array_stride, 24);
+        assert_eq!(
+            builder.vertex_buffer_layouts[1].step_mode,
+            wgpu::VertexStepMode::Instance
+        );
+    }
+
+    #[test]
+    fn test_builder_with_different_texture_formats() {
+        let mut builder = PipelineBuilder::new();
+
+        // Test various texture formats
+        let formats = [
+            wgpu::TextureFormat::Rgba8Unorm,
+            wgpu::TextureFormat::Bgra8Unorm,
+            wgpu::TextureFormat::Rgba16Float,
+            wgpu::TextureFormat::R32Float,
+        ];
+
+        for format in formats {
+            builder.set_pixel_format(format);
+            assert_eq!(builder.pixel_format, format);
+        }
+    }
+
+    #[test]
+    fn test_empty_shader_filename() {
+        let mut builder = PipelineBuilder::new();
+
+        builder.set_shader_module("", "vs_main", "fs_main");
+
+        assert_eq!(builder.shader_filename, "");
+    }
+
+    #[test]
+    fn test_builder_state_consistency() {
+        let mut builder = PipelineBuilder::new();
+
+        // Настраиваем builder
+        builder.set_shader_module("complex_shader.wgsl", "vertex_main", "fragment_main");
+        builder.set_pixel_format(wgpu::TextureFormat::Rgba16Float);
+
+        let layout = wgpu::VertexBufferLayout {
+            array_stride: 32,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[],
+        };
+        builder.add_buffer_layout(layout);
+
+        assert_eq!(builder.shader_filename, "complex_shader.wgsl");
+        assert_eq!(builder.vertex_entry, "vertex_main");
+        assert_eq!(builder.fragment_entry, "fragment_main");
+        assert_eq!(builder.pixel_format, wgpu::TextureFormat::Rgba16Float);
+        assert_eq!(builder.vertex_buffer_layouts.len(), 1);
+        assert_eq!(builder.vertex_buffer_layouts[0].array_stride, 32);
     }
 }
