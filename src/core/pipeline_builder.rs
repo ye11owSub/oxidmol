@@ -3,8 +3,9 @@ use std::{env::current_dir, fs};
 pub struct PipelineBuilder {
     shader_filename: String,
     vertex_entry: String,
-    fragmetn_enty: String,
+    fragment_entry: String,
     pixel_format: wgpu::TextureFormat,
+    vertex_buffer_layouts: Vec<wgpu::VertexBufferLayout<'static>>,
 }
 
 impl PipelineBuilder {
@@ -12,8 +13,9 @@ impl PipelineBuilder {
         PipelineBuilder {
             shader_filename: "dummy".to_string(),
             vertex_entry: "dummy".to_string(),
-            fragmetn_enty: "dummy".to_string(),
+            fragment_entry: "dummy".to_string(),
             pixel_format: wgpu::TextureFormat::Rgba8Unorm,
+            vertex_buffer_layouts: Vec::new(),
         }
     }
 
@@ -21,15 +23,19 @@ impl PipelineBuilder {
         &mut self,
         shader_filename: &str,
         vertex_entry: &str,
-        fragmetn_enty: &str,
+        fragment_entry: &str,
     ) {
         self.shader_filename = shader_filename.to_string();
         self.vertex_entry = vertex_entry.to_string();
-        self.fragmetn_enty = fragmetn_enty.to_string();
+        self.fragment_entry = fragment_entry.to_string();
     }
 
     pub fn set_pixel_format(&mut self, pixel_format: wgpu::TextureFormat) {
         self.pixel_format = pixel_format;
+    }
+
+    pub fn add_buffer_layout(&mut self, layout: wgpu::VertexBufferLayout<'static>) {
+        self.vertex_buffer_layouts.push(layout)
     }
 
     pub fn build_pipeline(&mut self, device: &wgpu::Device) -> wgpu::RenderPipeline {
@@ -37,11 +43,11 @@ impl PipelineBuilder {
         file_path.push("src/");
         file_path.push(self.shader_filename.as_str());
         let file_path = file_path.into_os_string().into_string().unwrap();
-        let souce_code = fs::read_to_string(file_path).expect("Can't read source code");
+        let source_code = fs::read_to_string(file_path).expect("Can't read source code");
 
         let shader_module_descriptor = wgpu::ShaderModuleDescriptor {
             label: Some("Shader Module"),
-            source: wgpu::ShaderSource::Wgsl(souce_code.into()),
+            source: wgpu::ShaderSource::Wgsl(source_code.into()),
         };
         let shader_module = device.create_shader_module(shader_module_descriptor);
 
@@ -64,7 +70,7 @@ impl PipelineBuilder {
                 module: &shader_module,
                 entry_point: Some(&self.vertex_entry),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[],
+                buffers: &self.vertex_buffer_layouts,
             },
 
             primitive: wgpu::PrimitiveState {
@@ -79,7 +85,7 @@ impl PipelineBuilder {
 
             fragment: Some(wgpu::FragmentState {
                 module: &shader_module,
-                entry_point: Some(&self.fragmetn_enty),
+                entry_point: Some(&self.fragment_entry),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &render_targets,
             }),
