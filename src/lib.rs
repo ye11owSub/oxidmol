@@ -29,7 +29,6 @@ fn wgpu_integration_py(_py: Python, module: Bound<'_, PyModule>) -> PyResult<()>
 fn init_logging() {
     #[cfg(debug_assertions)]
     {
-        // В debug режиме включаем подробное логирование
         std::env::set_var("RUST_LOG", "debug");
         env_logger::init();
     }
@@ -47,25 +46,11 @@ fn init_logging() {
     );
 }
 
-/// Тесты интеграции
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_renderer_creation() {}
-
-    #[test]
-    fn test_error_handling() {}
-}
-
 #[used]
 #[cfg_attr(target_os = "linux", link_section = ".ctors")]
 #[cfg_attr(target_os = "windows", link_section = ".CRT$XCU")]
 static INIT: unsafe extern "C" fn() = {
     #[cfg_attr(target_os = "linux", link_section = ".text.startup")]
-    unsafe extern "C" fn init() {
-        // Инициализация при загрузке библиотеки
-    }
+    unsafe extern "C" fn init() {}
     init
 };
