@@ -88,7 +88,7 @@ impl<'a> State<'a> {
             config,
             size,
             render_pipeline,
-            triangle_mesh: triangle_mesh,
+            triangle_mesh,
             quad_mesh,
         }
     }
@@ -127,7 +127,7 @@ impl<'a> State<'a> {
         };
 
         {
-            let mut render_pass = encoder.begin_render_pass(&render_pass_descriptor);
+            let mut render_pass = encoder.begin_render_pass(render_pass_descriptor);
             render_pass.set_pipeline(&self.render_pipeline);
 
             render_pass.set_vertex_buffer(0, self.quad_mesh.vertex_buffer.slice(..));

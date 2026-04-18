@@ -8,6 +8,12 @@ pub struct PipelineBuilder {
     vertex_buffer_layouts: Vec<wgpu::VertexBufferLayout<'static>>,
 }
 
+impl Default for PipelineBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PipelineBuilder {
     pub fn new() -> Self {
         PipelineBuilder {

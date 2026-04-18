@@ -59,13 +59,11 @@ pub fn make_triangle(device: &wgpu::Device) -> wgpu::Buffer {
 
     let bytes: &[u8] = unsafe { any_as_u8_slice(&vertices) };
 
-    let buffer = device.create_buffer_init(&BufferInitDescriptor {
+    device.create_buffer_init(&BufferInitDescriptor {
         label: Some("Tringle vertex buffer"),
         contents: bytes,
         usage: wgpu::BufferUsages::VERTEX,
-    });
-
-    buffer
+    })
 }
 
 pub fn make_quad(device: &wgpu::Device) -> Mesh {

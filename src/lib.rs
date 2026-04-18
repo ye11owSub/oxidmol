@@ -53,12 +53,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_renderer_creation() {
-    }
+    fn test_renderer_creation() {}
 
     #[test]
-    fn test_error_handling() {
-    }
+    fn test_error_handling() {}
 }
 
 #[used]
