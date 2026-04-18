@@ -1,7 +1,7 @@
 use wgpu;
 
 use crate::{
-    core::{pipeline_builder, PipelineBuilder},
+    core::{mesh_builder, Mesh, PipelineBuilder},
     utils::QtWindowHandle,
 };
 
@@ -13,6 +13,8 @@ pub struct State<'a> {
     config: wgpu::SurfaceConfiguration,
     pub size: (u32, u32),
     render_pipeline: wgpu::RenderPipeline,
+    triangle_mesh: wgpu::Buffer,
+    quad_mesh: Mesh,
 }
 
 impl<'a> State<'a> {
@@ -68,7 +70,11 @@ impl<'a> State<'a> {
 
         surface.configure(&device, &config);
 
+        let triangle_mesh = mesh_builder::make_triangle(&device);
+        let quad_mesh = mesh_builder::make_quad(&device);
+
         let mut pipeline_builder = PipelineBuilder::new();
+        pipeline_builder.add_buffer_layout(mesh_builder::Vertex::get_layout());
         pipeline_builder.set_shader_module("shaders/shader.wgsl", "vs_main", "fs_main");
         pipeline_builder.set_pixel_format(config.format);
 
@@ -82,6 +88,8 @@ impl<'a> State<'a> {
             config,
             size,
             render_pipeline,
+            triangle_mesh: triangle_mesh,
+            quad_mesh,
         }
     }
 
@@ -121,6 +129,15 @@ impl<'a> State<'a> {
         {
             let mut render_pass = encoder.begin_render_pass(&render_pass_descriptor);
             render_pass.set_pipeline(&self.render_pipeline);
+
+            render_pass.set_vertex_buffer(0, self.quad_mesh.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(
+                self.quad_mesh.index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
+            render_pass.draw_indexed(0..6, 0, 0..1);
+
+            render_pass.set_vertex_buffer(0, self.triangle_mesh.slice(..));
             render_pass.draw(0..3, 0..1);
         }
         self.queue.submit(std::iter::once(encoder.finish()));

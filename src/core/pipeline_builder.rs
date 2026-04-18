@@ -3,8 +3,9 @@ use std::{env::current_dir, fs};
 pub struct PipelineBuilder {
     shader_filename: String,
     vertex_entry: String,
-    fragment_enty: String,
+    fragment_entry: String,
     pixel_format: wgpu::TextureFormat,
+    vertex_buffer_layouts: Vec<wgpu::VertexBufferLayout<'static>>,
 }
 
 impl PipelineBuilder {
@@ -12,8 +13,9 @@ impl PipelineBuilder {
         PipelineBuilder {
             shader_filename: "dummy".to_string(),
             vertex_entry: "dummy".to_string(),
-            fragment_enty: "dummy".to_string(),
+            fragment_entry: "dummy".to_string(),
             pixel_format: wgpu::TextureFormat::Rgba8Unorm,
+            vertex_buffer_layouts: Vec::new(),
         }
     }
 
@@ -21,15 +23,19 @@ impl PipelineBuilder {
         &mut self,
         shader_filename: &str,
         vertex_entry: &str,
-        fragmetn_enty: &str,
+        fragment_entry: &str,
     ) {
         self.shader_filename = shader_filename.to_string();
         self.vertex_entry = vertex_entry.to_string();
-        self.fragment_enty = fragmetn_enty.to_string();
+        self.fragment_entry = fragment_entry.to_string();
     }
 
     pub fn set_pixel_format(&mut self, pixel_format: wgpu::TextureFormat) {
         self.pixel_format = pixel_format;
+    }
+
+    pub fn add_buffer_layout(&mut self, layout: wgpu::VertexBufferLayout<'static>) {
+        self.vertex_buffer_layouts.push(layout)
     }
 
     pub fn build_pipeline(&mut self, device: &wgpu::Device) -> wgpu::RenderPipeline {
@@ -64,7 +70,7 @@ impl PipelineBuilder {
                 module: &shader_module,
                 entry_point: Some(&self.vertex_entry),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[],
+                buffers: &self.vertex_buffer_layouts,
             },
 
             primitive: wgpu::PrimitiveState {
@@ -79,7 +85,7 @@ impl PipelineBuilder {
 
             fragment: Some(wgpu::FragmentState {
                 module: &shader_module,
-                entry_point: Some(&self.fragment_enty),
+                entry_point: Some(&self.fragment_entry),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &render_targets,
             }),
