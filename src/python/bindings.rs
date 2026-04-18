@@ -46,8 +46,8 @@ pub struct PyWgpuRenderer {
 
 #[pymethods]
 impl PyWgpuRenderer {
-    #[pyo3(signature = (window_handle, *, width = 800, height = 600))]
     #[new]
+    #[pyo3(signature = (window_handle, *, width = 800, height = 600))]
     /// Create a new WGPU renderer
     ///
     /// Args:

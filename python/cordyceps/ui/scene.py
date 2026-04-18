@@ -26,7 +26,7 @@ class WgpuWidget(QWidget):
             hwnd = int(self.winId())
             width, height = self.width(), self.height()
 
-            self.renderer = PyWgpuRenderer(hwnd, width, height)
+            self.renderer = PyWgpuRenderer(hwnd, width=width, height=height)
             print("WGSU renderer initialized successfully")
 
         except Exception as e:
