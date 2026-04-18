@@ -1,11 +1,12 @@
-from cordyceps.ui.menu import ActionToolBar, Menu
-from cordyceps.ui.scene import WgpuWidget
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QMainWindow, QVBoxLayout, QWidget
 
+from cordyceps.ui.menu import ActionToolBar, Menu
+from cordyceps.ui.scene import WgpuWidget
+
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Cordyceps")
         self.setGeometry(100, 100, 800, 600)
@@ -30,7 +31,7 @@ class MainWindow(QMainWindow):
         placeholder1 = QLabel("Scene area 1")
         placeholder1.setAlignment(Qt.AlignmentFlag.AlignCenter)
         placeholder1.setStyleSheet("background:#111; color:#bbb;")
-        top_layout.addWidget(placeholder1 )
+        top_layout.addWidget(placeholder1)
 
         self.wgpu_widget = WgpuWidget()
         top_layout.addWidget(self.wgpu_widget)
@@ -44,4 +45,3 @@ class MainWindow(QMainWindow):
         placeholder3.setAlignment(Qt.AlignmentFlag.AlignCenter)
         placeholder3.setStyleSheet("background:#111; color:#bbb;")
         bottom_layout.addWidget(placeholder3)
-

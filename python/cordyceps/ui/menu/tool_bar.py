@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 
 
 class ActionToolBar(QToolBar):
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("ActionToolbar", parent)
         self.setMovable(False)
         self.setFloatable(False)
@@ -20,6 +20,7 @@ class ActionToolBar(QToolBar):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
 
         style = self.style()
+        assert style is not None
 
         self.create_menu_button("Residues")
 
@@ -46,6 +47,7 @@ class ActionToolBar(QToolBar):
         self.add_widget(spacer)
 
         style = self.style()
+        assert style is not None
 
         self.create_menu_button("Builder…")
 

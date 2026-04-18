@@ -5,6 +5,7 @@ use crate::{
     utils::QtWindowHandle,
 };
 
+#[expect(dead_code)]
 pub struct State<'a> {
     instance: wgpu::Instance,
     surface: wgpu::Surface<'a>,

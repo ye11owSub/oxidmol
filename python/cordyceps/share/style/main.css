@@ -1,0 +1,36 @@
+QToolBar {
+    background: #2b2f36;
+    border: none;
+    padding: 0;
+    spacing: 0;
+}
+
+QToolButton#ToolbarButton {
+    color: #e5e7eb;
+    background: #3a3f46;
+    border: 1px solid #474c54;
+    padding: 6px 10px;
+}
+
+QToolButton#ToolbarButton:hover {
+    background: #4a5058;
+}
+
+QToolButton#ToolbarButton:pressed,
+QToolButton#ToolbarButton:checked {
+    background: #5b616a;
+}
+
+QToolButton#ToolbarButton:disabled {
+    color: #9aa0a6;
+    background: #3a3f46;
+    border-color: #3a3f46;
+}
+
+QFrame#ToolbarVLine {
+    background: transparent;
+    border-left: 1px solid #474c54;
+    margin: 0 6px;
+    min-width: 1px;
+    max-width: 1px;
+}

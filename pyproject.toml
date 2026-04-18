@@ -107,6 +107,7 @@ extend-select = [
 fixture-parentheses = false
 
 [tool.mypy]
+mypy_path = ["python"]
 explicit_package_bases = true
 extra_checks = true
 check_untyped_defs = true
@@ -125,6 +126,11 @@ warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 testpaths = ["python/tests"]
+addopts = "-v --tb=short"
+markers = [
+    "gpu: marks tests as requiring GPU",
+    "ui: marks tests as UI tests",
+]
 
 [[tool.mypy.overrides]]
 module = [

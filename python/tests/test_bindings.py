@@ -1,0 +1,11 @@
+import pytest
+
+lsd = pytest.importorskip("cordyceps.lsd", reason="Rust bindings not available")
+
+
+def test_get_backend_info_returns_dict() -> None:
+    info = lsd.get_backend_info()
+    assert isinstance(info, dict)
+    assert "backend" in info
+    assert "version" in info
+    assert "supported_apis" in info
