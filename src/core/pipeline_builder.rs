@@ -3,7 +3,7 @@ use std::{env::current_dir, fs};
 pub struct PipelineBuilder {
     shader_filename: String,
     vertex_entry: String,
-    fragmetn_enty: String,
+    fragment_enty: String,
     pixel_format: wgpu::TextureFormat,
 }
 
@@ -12,7 +12,7 @@ impl PipelineBuilder {
         PipelineBuilder {
             shader_filename: "dummy".to_string(),
             vertex_entry: "dummy".to_string(),
-            fragmetn_enty: "dummy".to_string(),
+            fragment_enty: "dummy".to_string(),
             pixel_format: wgpu::TextureFormat::Rgba8Unorm,
         }
     }
@@ -25,7 +25,7 @@ impl PipelineBuilder {
     ) {
         self.shader_filename = shader_filename.to_string();
         self.vertex_entry = vertex_entry.to_string();
-        self.fragmetn_enty = fragmetn_enty.to_string();
+        self.fragment_enty = fragmetn_enty.to_string();
     }
 
     pub fn set_pixel_format(&mut self, pixel_format: wgpu::TextureFormat) {
@@ -37,11 +37,11 @@ impl PipelineBuilder {
         file_path.push("src/");
         file_path.push(self.shader_filename.as_str());
         let file_path = file_path.into_os_string().into_string().unwrap();
-        let souce_code = fs::read_to_string(file_path).expect("Can't read source code");
+        let source_code = fs::read_to_string(file_path).expect("Can't read source code");
 
         let shader_module_descriptor = wgpu::ShaderModuleDescriptor {
             label: Some("Shader Module"),
-            source: wgpu::ShaderSource::Wgsl(souce_code.into()),
+            source: wgpu::ShaderSource::Wgsl(source_code.into()),
         };
         let shader_module = device.create_shader_module(shader_module_descriptor);
 
@@ -79,7 +79,7 @@ impl PipelineBuilder {
 
             fragment: Some(wgpu::FragmentState {
                 module: &shader_module,
-                entry_point: Some(&self.fragmetn_enty),
+                entry_point: Some(&self.fragment_enty),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &render_targets,
             }),
