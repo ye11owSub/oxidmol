@@ -1,7 +1,8 @@
 from cordyceps.ui.main_window import MainWindow
 from PyQt6.QtWidgets import QApplication
 
-if __name__ == "__main__":
+
+def main() -> None:
     app = QApplication([])
     window = MainWindow()
     #with open("style.qss", "r") as f:
@@ -9,3 +10,7 @@ if __name__ == "__main__":
     #    app.setStyleSheet(_style)
     window.show()
     app.exec()
+
+
+if __name__ == "__main__":
+    main()
