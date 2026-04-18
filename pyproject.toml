@@ -26,6 +26,8 @@ dependencies = [
 dev = [
     "maturin>=1.9,<2.0",
     "mypy>=1.18.2",
+    "pytest>=8.0",
+    "pytest-qt>=4.0",
     "ruff>=0.13.1",
 ]
 
@@ -120,6 +122,9 @@ warn_redundant_casts = true
 warn_return_any = true
 warn_unused_configs = true
 warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
 
 [[tool.mypy.overrides]]
 module = [
