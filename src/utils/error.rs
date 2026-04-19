@@ -1,6 +1,16 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+#[error("Unknown element symbol: {0:?}")]
+pub struct UnknownElement(pub String);
+
+#[derive(Error, Debug)]
+pub enum LoadError {
+    #[error("PDB parse failed: {0}")]
+    Pdb(String),
+}
+
+#[derive(Error, Debug)]
 pub enum WgpuError {
     #[error("Failed to create surface: {0}")]
     SurfaceCreation(String),
