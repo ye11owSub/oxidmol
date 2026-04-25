@@ -44,4 +44,4 @@ def _load_bcif(path: Path) -> Molecule:
     structure = gemmi.read_structure(str(path))
 
     cif_str = structure.make_mmcif_document().as_string()
-    return Molecule.from_cif_str(cif_str)
+    return Molecule.from_str(cif_str)

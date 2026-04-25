@@ -29,6 +29,7 @@ dev = [
     "maturin>=1.9,<2.0",
     "mypy>=1.18.2",
     "pytest>=8.0",
+    "pytest-asyncio>=0.24",
     "pytest-qt>=4.0",
     "ruff>=0.13.1",
 ]
@@ -129,6 +130,7 @@ warn_unused_ignores = true
 [tool.pytest.ini_options]
 testpaths = ["python/tests"]
 addopts = "-v --tb=short"
+asyncio_mode = "auto"
 markers = [
     "gpu: marks tests as requiring GPU",
     "ui: marks tests as UI tests",

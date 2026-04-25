@@ -56,10 +56,10 @@ async def _download(urls: list[str]) -> bytes:
             try:
                 r = await client.get(url)
                 r.raise_for_status()
-                return r.content
             except httpx.HTTPError as e:
                 last_error = e
-                continue
+            else:
+                return r.content
 
     raise RuntimeError(f"Can't download. All sources aren't available : {last_error}")
 
@@ -99,7 +99,9 @@ async def _fetch_many_async(
 
     results = await asyncio.gather(*tasks.values(), return_exceptions=True)
 
-    return {entry_id: mol for entry_id, mol in zip(tasks.keys(), results, strict=False) if not isinstance(mol, Exception)}
+    return {
+        entry_id: mol for entry_id, mol in zip(tasks.keys(), results, strict=False) if not isinstance(mol, Exception)
+    }
 
 
 def fetch(
