@@ -8,6 +8,12 @@ pub struct UnknownElement(pub String);
 pub enum LoadError {
     #[error("PDB parse failed: {0}")]
     Pdb(String),
+    #[error("mmCIF parse failed: {0}")]
+    Cif(String),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Unsupported file format: {0}")]
+    UnsupportedFormat(String),
 }
 
 #[derive(Error, Debug)]
