@@ -1,6 +1,7 @@
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
+    QFrame,
     QSizePolicy,
     QStyle,
     QToolBar,
@@ -9,104 +10,142 @@ from PyQt6.QtWidgets import (
     QWidgetAction,
 )
 
+_TOOLBAR_STYLE = """
+QToolBar {
+    background: #1e1e1e;
+    border: none;
+    border-bottom: 1px solid #333333;
+    padding: 0;
+    spacing: 0;
+}
+QToolButton#TBtn {
+    color: #c8c8c8;
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 4px 9px;
+    font-size: 11px;
+}
+QToolButton#TBtn:hover {
+    background: #2e2e2e;
+    border-color: #444444;
+}
+QToolButton#TBtn:pressed,
+QToolButton#TBtn:checked {
+    background: #3a3a3a;
+    border-color: #555555;
+    color: #ffffff;
+}
+QToolButton#TBtn:disabled {
+    color: #555555;
+}
+QFrame#VSep {
+    background: #383838;
+    border: none;
+    min-width: 1px;
+    max-width: 1px;
+    margin: 5px 3px;
+}
+"""
+
 
 class ActionToolBar(QToolBar):
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__("ActionToolbar", parent)
+        super().__init__("Actions", parent)
         self.setMovable(False)
         self.setFloatable(False)
-        self.setIconSize(QSize(18, 18))
-        self.setContentsMargins(0, 0, 0, 0)
+        self.setIconSize(QSize(16, 16))
+        self.setContentsMargins(2, 0, 2, 0)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
+        self.setStyleSheet(_TOOLBAR_STYLE)
 
         style = self.style()
         assert style is not None
 
-        self.create_menu_button("Residues")
+        # ── View group ───────────────────────────────────────────────────────
+        zoom = self._btn("Zoom All")
+        zoom.setToolTip("Zoom to fit all objects")
+        orient = self._btn("Orient")
+        orient.setToolTip("Align camera to principal axes")
+        reset = self._btn("Reset")
+        reset.setToolTip("Reset camera to default")
 
+        self._sep()
+
+        # ── Undo / Redo ──────────────────────────────────────────────────────
         undo_icon = style.standardIcon(QStyle.StandardPixmap.SP_ArrowBack)
         redo_icon = style.standardIcon(QStyle.StandardPixmap.SP_ArrowForward)
+        btn_undo = self._btn("", icon=undo_icon)
+        btn_undo.setToolTip("Undo (Ctrl+Z)")
+        btn_redo = self._btn("", icon=redo_icon)
+        btn_redo.setToolTip("Redo (Ctrl+Y)")
 
-        btn_undo = self.create_menu_button("", icon=undo_icon)
-        btn_redo = self.create_menu_button("", icon=redo_icon)
+        self._sep()
 
-        btn_undo.setToolTip("Undo")
-        btn_redo.setToolTip("Redo")
+        # ── Rotation ─────────────────────────────────────────────────────────
+        spin = self._btn("Spin")
+        spin.setCheckable(True)
+        spin.setToolTip("Auto-rotate around Y axis")
 
-        self.create_menu_button("Zoom")
+        self._sep()
 
-        self.create_menu_button("Orient")
+        # ── Representations ──────────────────────────────────────────────────
+        presets = self._btn("Presets…")
+        presets.setToolTip("Apply a representation preset")
+        presets.setEnabled(False)
 
-        self.create_menu_button("Rock")
+        self._sep()
 
-        self.create_menu_button("Presets…")
+        # ── Views ────────────────────────────────────────────────────────────
+        bookmarks = self._btn("Bookmarks")
+        bookmarks.setToolTip("Manage saved views")
+        bookmarks.setEnabled(False)
 
+        # ── Spacer ───────────────────────────────────────────────────────────
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self._add_widget(spacer)
 
-        self.add_widget(spacer)
+        # ── Right group ──────────────────────────────────────────────────────
+        self._sep()
 
-        style = self.style()
-        assert style is not None
+        builder = self._btn("Builder…")
+        builder.setToolTip("Open structure builder")
+        builder.setEnabled(False)
 
-        self.create_menu_button("Builder…")
+        self._sep()
 
-        self.create_menu_button("Scenes")
+        render_icon = style.standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)
+        render = self._btn("Render", icon=render_icon)
+        render.setToolTip("Render current frame")
+        render.setEnabled(False)
 
-        camera_icon = style.standardIcon(QStyle.StandardPixmap.SP_DialogYesButton)
-        self.create_menu_button("Draw/Ray", icon=camera_icon)
+        self._sep()
 
-        btn_more = self.create_menu_button("…")
-        btn_more.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        more = self._btn("…")
+        more.setToolTip("More options")
+        more.setEnabled(False)
 
-        self.setStyleSheet("""
-        QToolBar {
-            background: #2b2f36;
-            border: none;
-            padding: 0;
-            spacing: 0;
-        }
-        QToolButton#ToolbarButton {
-            color: #e5e7eb;
-            background: #3a3f46;
-            border: 1px solid #474c54;
-            padding: 6px 10px;
-        }
-        QToolButton#ToolbarButton:hover {
-            background: #4a5058;
-        }
-        QToolButton#ToolbarButton:pressed,
-        QToolButton#ToolbarButton:checked {
-            background: #5b616a;
-        }
-        QToolButton#ToolbarButton:disabled {
-            color: #9aa0a6;
-            background: #3a3f46;
-            border-color: #3a3f46;
-        }
-        QFrame#ToolbarVLine {
-            background: transparent;
-            border-left: 1px solid #474c54;
-            margin: 0 6px;
-            min-width: 1px;
-            max-width: 1px;
-        }
-        """)
+    # ── helpers ──────────────────────────────────────────────────────────────
 
-    def create_menu_button(self, text: str, icon: None | QIcon = None) -> QToolButton:
+    def _btn(self, text: str, *, icon: QIcon | None = None) -> QToolButton:
         btn = QToolButton()
-
+        btn.setText(text)
+        btn.setObjectName("TBtn")
         if icon is not None:
             btn.setIcon(icon)
-
-        btn.setText(text)
-        btn.setObjectName("ToolbarButton")
-
-        self.add_widget(btn)
-
+            btn.setToolButtonStyle(
+                Qt.ToolButtonStyle.ToolButtonTextBesideIcon if text else Qt.ToolButtonStyle.ToolButtonIconOnly
+            )
+        self._add_widget(btn)
         return btn
 
-    def add_widget(self, widget: QWidget) -> None:
-        widget_action = QWidgetAction(self)
-        widget_action.setDefaultWidget(widget)
-        self.addAction(widget_action)
+    def _sep(self) -> None:
+        line = QFrame()
+        line.setObjectName("VSep")
+        line.setFrameShape(QFrame.Shape.VLine)
+        self._add_widget(line)
+
+    def _add_widget(self, widget: QWidget) -> None:
+        action = QWidgetAction(self)
+        action.setDefaultWidget(widget)
+        self.addAction(action)
