@@ -1,47 +1,119 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QMainWindow, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QFileDialog,
+    QMainWindow,
+    QSplitter,
+    QVBoxLayout,
+    QWidget,
+)
 
+from cordyceps.ui.command_bar import CommandBar
 from cordyceps.ui.menu import ActionToolBar, Menu
+from cordyceps.ui.object_panel import ObjectPanel
 from cordyceps.ui.scene import WgpuWidget
+
+_WINDOW_STYLE = """
+QMainWindow {
+    background: #1c1c1c;
+}
+QMenuBar {
+    background: #1e1e1e;
+    color: #c8c8c8;
+    border-bottom: 1px solid #333333;
+}
+QMenuBar::item {
+    background: transparent;
+    padding: 4px 10px;
+}
+QMenuBar::item:selected {
+    background: #2e2e2e;
+}
+QMenu {
+    background: #252525;
+    color: #c8c8c8;
+    border: 1px solid #3a3a3a;
+}
+QMenu::item:selected {
+    background: #3a5a8a;
+}
+QScrollBar:vertical {
+    background: #1a1a1a;
+    width: 8px;
+    border: none;
+}
+QScrollBar::handle:vertical {
+    background: #404040;
+    border-radius: 4px;
+    min-height: 20px;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
+}
+"""
 
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Cordyceps")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(100, 100, 1280, 800)
+        self.setStyleSheet(_WINDOW_STYLE)
 
-        menu = Menu(self)
-        self.setMenuBar(menu)
+        self._menu = Menu(self)
+        self.setMenuBar(self._menu)
+        self._toolbar = ActionToolBar(self)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self._toolbar)
 
-        self.action_toolbar = ActionToolBar(self)
-        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.action_toolbar)
+        # ── central widget ──────────────────────────────────────────────────
+        central = QWidget()
+        self.setCentralWidget(central)
+        root = QVBoxLayout(central)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
 
-        main_layout = QVBoxLayout()
-
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        central_widget.setLayout(main_layout)
-
-        top_layout = QHBoxLayout()
-        bottom_layout = QHBoxLayout()
-        main_layout.addLayout(top_layout)
-        main_layout.addLayout(bottom_layout)
-
-        placeholder1 = QLabel("Scene area 1")
-        placeholder1.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder1.setStyleSheet("background:#111; color:#bbb;")
-        top_layout.addWidget(placeholder1)
+        # ── horizontal splitter: viewport | object panel ────────────────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(2)
+        splitter.setStyleSheet("QSplitter::handle { background: #333333; }")
 
         self.wgpu_widget = WgpuWidget()
-        top_layout.addWidget(self.wgpu_widget)
+        splitter.addWidget(self.wgpu_widget)
 
-        placeholder2 = QLabel("Scene area 2")
-        placeholder2.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder2.setStyleSheet("background:#111; color:#bbb;")
-        top_layout.addWidget(placeholder2)
+        self.object_panel = ObjectPanel()
+        splitter.addWidget(self.object_panel)
 
-        placeholder3 = QLabel("Scene area 3")
-        placeholder3.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder3.setStyleSheet("background:#111; color:#bbb;")
-        bottom_layout.addWidget(placeholder3)
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 0)
+        splitter.setSizes([1060, 220])
+
+        root.addWidget(splitter, stretch=1)
+
+        # ── command bar ─────────────────────────────────────────────────────
+        self.command_bar = CommandBar()
+        root.addWidget(self.command_bar)
+
+        # ── wiring ──────────────────────────────────────────────────────────
+        self.wgpu_widget.molecule_loaded.connect(self._on_molecule_loaded)
+        self.command_bar.command_entered.connect(self._on_command)
+        self._menu.open_action.triggered.connect(self.open_file)
+        self._menu.quit_action.triggered.connect(self.close)
+
+    # ── slots ────────────────────────────────────────────────────────────────
+
+    def _on_molecule_loaded(self, name: str) -> None:
+        self.object_panel.add_object(name)
+        self.command_bar.print(f" Loaded: {name}")
+
+    def _on_command(self, cmd: str) -> None:
+        pass
+
+
+    def open_file(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Molecule",
+            "",
+            "Molecule files (*.pdb *.cif);;All files (*)",
+        )
+        if path:
+            self.wgpu_widget.load_file(path)

@@ -23,7 +23,6 @@ _URLS = {
         Format.PDB: "https://files.rcsb.org/download/{id}.pdb",
     },
     "pdbe": {
-        # PDBe не отдаёт BCIF
         Format.CIF: "https://www.ebi.ac.uk/pdbe/entry-files/download/{id}.cif",
         Format.PDB: "https://www.ebi.ac.uk/pdbe/entry-files/download/{id}.pdb",
     },
