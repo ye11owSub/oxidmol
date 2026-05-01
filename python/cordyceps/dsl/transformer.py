@@ -7,7 +7,6 @@ from cordyceps.utils.fetch import Format
 
 @v_args(inline=True)
 class CordycepsTransformer(Transformer):
-
     def entry_id(self, token: str) -> str:
         return str(token)
 

@@ -18,10 +18,12 @@ GRAMMAR = r"""
     // ─── terminals ────────────────────────────
     ENTRY_ID: /[A-Za-z0-9]+/
     PATH:     /[^\s,]+/
+    NAME:     /[A-Za-z0-9_]+/
 
     // ─── cmd args ─────────────────────────────
     entry_id:    ENTRY_ID
     path:        PATH
+    name:        NAME
     !format_arg: "cif" | "pdb" | "bcif"
 
     // ─── imports ────────────────────────────────────

@@ -1,8 +1,9 @@
 import pytest
+from pytestqt.qtbot import QtBot
+
 from cordyceps.ui.main_window import MainWindow
 from cordyceps.ui.menu import Menu
 from cordyceps.ui.scene import WgpuWidget
-from pytestqt.qtbot import QtBot
 
 
 @pytest.mark.ui
