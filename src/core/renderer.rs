@@ -1,12 +1,49 @@
-use wgpu;
+use glam::Vec3;
+use wgpu::util::DeviceExt;
 
 use crate::{
-    core::{mesh_builder, Mesh, PipelineBuilder},
-    utils::QtWindowHandle,
+    core::{mesh_builder, molecule::FlatAtom, Mesh, Molecule, PipelineBuilder},
+    utils::{create_projection_matrix, create_view_matrix, LoadError, QtWindowHandle},
 };
 
-#[expect(dead_code)]
+const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
+#[repr(C)]
+struct CameraUniform {
+    view_proj: [[f32; 4]; 4],
+}
+
+/// Builds a perspective matrix compatible with wgpu's NDC (depth [0, 1]).
+fn make_projection(fov_y: f32, aspect: f32, near: f32, far: f32) -> glam::Mat4 {
+    // create_projection_matrix uses glam's perspective_rh (depth [-1, 1]).
+    // Apply correction to remap Z from [-1, 1] → [0, 1] as wgpu expects.
+    let proj = create_projection_matrix(fov_y, aspect, near, far);
+    let correction = glam::Mat4::from_cols_array_2d(&[
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 0.5, 0.0],
+        [0.0, 0.0, 0.5, 1.0],
+    ]);
+    correction * proj
+}
+
+// ---- byte helpers ----------------------------------------------------------
+
+unsafe fn as_bytes<T: Sized>(val: &T) -> &[u8] {
+    std::slice::from_raw_parts(val as *const T as *const u8, std::mem::size_of::<T>())
+}
+
+unsafe fn slice_as_bytes<T: Sized>(val: &[T]) -> &[u8] {
+    std::slice::from_raw_parts(
+        val.as_ptr() as *const u8,
+        val.len() * std::mem::size_of::<T>(),
+    )
+}
+
+// ---- State -----------------------------------------------------------------
+
 pub struct State<'a> {
+    #[allow(dead_code)]
     instance: wgpu::Instance,
     surface: wgpu::Surface<'a>,
     device: wgpu::Device,
@@ -14,72 +51,113 @@ pub struct State<'a> {
     config: wgpu::SurfaceConfiguration,
     pub size: (u32, u32),
     render_pipeline: wgpu::RenderPipeline,
-    triangle_mesh: wgpu::Buffer,
-    quad_mesh: Mesh,
+    sphere_mesh: Mesh,
+    depth_view: wgpu::TextureView,
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
+    instance_buffer: Option<wgpu::Buffer>,
+    instance_count: u32,
 }
 
 impl<'a> State<'a> {
     pub async fn new(window_handle: usize, width: u32, height: u32) -> Self {
         let size = (width, height);
-
         let window = QtWindowHandle::new(window_handle);
 
-        let instance_descriptor = wgpu::InstanceDescriptor {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
-        };
-        let instance = wgpu::Instance::new(&instance_descriptor);
+        });
 
         let target = unsafe { wgpu::SurfaceTargetUnsafe::from_window(&window) }.unwrap();
-
         let surface = unsafe { instance.create_surface_unsafe(target) }.unwrap();
 
-        let adapter_descriptor = wgpu::RequestAdapterOptionsBase {
-            power_preference: wgpu::PowerPreference::default(),
-            compatible_surface: Some(&surface),
-            force_fallback_adapter: false,
-        };
-        let device_descriptor = wgpu::DeviceDescriptor {
-            required_features: wgpu::Features::empty(),
-            memory_hints: wgpu::MemoryHints::default(),
-            required_limits: wgpu::Limits::default(),
-            trace: wgpu::Trace::Off,
-            label: None,
-        };
+        let adapter =
+            pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptionsBase {
+                power_preference: wgpu::PowerPreference::default(),
+                compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
+            }))
+            .unwrap();
 
-        let adapter = pollster::block_on(instance.request_adapter(&adapter_descriptor)).unwrap();
-        let (device, queue) = adapter.request_device(&device_descriptor).await.unwrap();
+        let (device, queue) = adapter
+            .request_device(&wgpu::DeviceDescriptor {
+                required_features: wgpu::Features::empty(),
+                memory_hints: wgpu::MemoryHints::default(),
+                required_limits: wgpu::Limits::default(),
+                trace: wgpu::Trace::Off,
+                label: None,
+            })
+            .await
+            .unwrap();
 
-        let surface_capabilities = surface.get_capabilities(&adapter);
-        let surface_format = surface_capabilities
+        let caps = surface.get_capabilities(&adapter);
+        let surface_format = caps
             .formats
             .iter()
             .copied()
             .find(|f| f.is_srgb())
-            .unwrap_or(surface_capabilities.formats[0]);
+            .unwrap_or(caps.formats[0]);
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
             width,
             height,
-            present_mode: surface_capabilities.present_modes[0],
-            alpha_mode: surface_capabilities.alpha_modes[0],
+            present_mode: caps.present_modes[0],
+            alpha_mode: caps.alpha_modes[0],
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
-
         surface.configure(&device, &config);
 
-        let triangle_mesh = mesh_builder::make_triangle(&device);
-        let quad_mesh = mesh_builder::make_quad(&device);
+        // Depth texture
+        let depth_view = Self::make_depth_view(&device, width, height);
 
+        // Camera uniform buffer (identity as placeholder)
+        let camera_data = CameraUniform {
+            view_proj: glam::Mat4::IDENTITY.to_cols_array_2d(),
+        };
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Camera buffer"),
+            contents: unsafe { as_bytes(&camera_data) },
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let camera_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Camera BGL"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Camera bind group"),
+            layout: &camera_bgl,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+        });
+
+        // Sphere mesh (16×16 stacks/slices — smooth enough, cheap enough)
+        let sphere_mesh = mesh_builder::make_sphere(&device, 16, 16);
+
+        // Render pipeline
         let mut pipeline_builder = PipelineBuilder::new();
-        pipeline_builder.add_buffer_layout(mesh_builder::Vertex::get_layout());
+        pipeline_builder.add_buffer_layout(mesh_builder::SphereVertex::get_layout());
+        pipeline_builder.add_buffer_layout(FlatAtom::get_instance_layout());
         pipeline_builder.set_shader_module("shaders/shader.wgsl", "vs_main", "fs_main");
         pipeline_builder.set_pixel_format(config.format);
-
-        let render_pipeline = pipeline_builder.build_pipeline(&device);
+        pipeline_builder.set_depth_format(DEPTH_FORMAT);
+        let render_pipeline = pipeline_builder.build_pipeline(&device, &[&camera_bgl]);
 
         Self {
             instance,
@@ -89,15 +167,94 @@ impl<'a> State<'a> {
             config,
             size,
             render_pipeline,
-            triangle_mesh,
-            quad_mesh,
+            sphere_mesh,
+            depth_view,
+            camera_buffer,
+            camera_bind_group,
+            instance_buffer: None,
+            instance_count: 0,
         }
+    }
+
+    fn make_depth_view(device: &wgpu::Device, width: u32, height: u32) -> wgpu::TextureView {
+        device
+            .create_texture(&wgpu::TextureDescriptor {
+                label: Some("Depth texture"),
+                size: wgpu::Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: DEPTH_FORMAT,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            })
+            .create_view(&wgpu::TextureViewDescriptor::default())
+    }
+
+    /// Upload an already-parsed molecule to the GPU.
+    pub fn upload_molecule(&mut self, mol: &Molecule) -> Result<(), LoadError> {
+        let atoms = mol.atoms_flat.clone();
+
+        if atoms.is_empty() {
+            self.instance_buffer = None;
+            self.instance_count = 0;
+            return Ok(());
+        }
+
+        // Bounding sphere: center + max radius
+        let center = atoms.iter().fold(Vec3::ZERO, |acc, a| acc + a.position) / atoms.len() as f32;
+        let max_r = atoms
+            .iter()
+            .map(|a| (a.position - center).length() + a.radius)
+            .fold(0.0_f32, f32::max);
+
+        // Position camera so the molecule fits in the 45° FOV
+        let fov_y: f32 = 45.0_f32.to_radians();
+        let dist = max_r / (fov_y * 0.5).tan();
+        let eye = center + Vec3::new(0.0, 0.0, dist + max_r);
+        let far = (dist + max_r) * 4.0;
+
+        let view = create_view_matrix(eye, center, Vec3::Y);
+        let aspect = self.size.0 as f32 / self.size.1 as f32;
+        let proj = make_projection(fov_y, aspect, 0.1, far);
+        let view_proj = proj * view;
+
+        let camera_data = CameraUniform {
+            view_proj: view_proj.to_cols_array_2d(),
+        };
+        self.queue
+            .write_buffer(&self.camera_buffer, 0, unsafe { as_bytes(&camera_data) });
+
+        // Upload atom instance data
+        let instance_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Atom instance buffer"),
+                contents: unsafe { slice_as_bytes(&atoms) },
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
+        self.instance_count = atoms.len() as u32;
+        self.instance_buffer = Some(instance_buffer);
+
+        Ok(())
+    }
+
+    /// Load a PDB or mmCIF file and upload atom data to the GPU.
+    pub fn load_molecule(&mut self, path: &str) -> Result<(), LoadError> {
+        let mol = Molecule::load(path)?;
+        self.upload_molecule(&mol)
     }
 
     pub fn render(&self) -> Result<(), Box<dyn std::error::Error>> {
         let frame = self.surface.get_current_texture()?;
-        let image_view_descriptor = wgpu::TextureViewDescriptor::default();
-        let view = frame.texture.create_view(&image_view_descriptor);
+        let view = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut encoder = self
             .device
@@ -105,45 +262,49 @@ impl<'a> State<'a> {
                 label: Some("Render Encoder"),
             });
 
-        let color_attachment = wgpu::RenderPassColorAttachment {
-            view: &view,
-            resolve_target: None,
-            ops: wgpu::Operations {
-                load: wgpu::LoadOp::Clear(wgpu::Color {
-                    r: 0.1,
-                    g: 0.2,
-                    b: 0.3,
-                    a: 1.0,
-                }),
-                store: wgpu::StoreOp::Store,
-            },
-        };
-
-        let render_pass_descriptor = &wgpu::RenderPassDescriptor {
-            label: Some("Render Pass"),
-            color_attachments: &[Some(color_attachment)],
-            depth_stencil_attachment: None,
-            occlusion_query_set: None,
-            timestamp_writes: None,
-        };
-
         {
-            let mut render_pass = encoder.begin_render_pass(render_pass_descriptor);
-            render_pass.set_pipeline(&self.render_pipeline);
+            let mut rp = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.05,
+                            g: 0.05,
+                            b: 0.10,
+                            a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
 
-            render_pass.set_vertex_buffer(0, self.quad_mesh.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(
-                self.quad_mesh.index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
-            render_pass.draw_indexed(0..6, 0, 0..1);
-
-            render_pass.set_vertex_buffer(0, self.triangle_mesh.slice(..));
-            render_pass.draw(0..3, 0..1);
+            if let Some(inst_buf) = &self.instance_buffer {
+                rp.set_pipeline(&self.render_pipeline);
+                rp.set_bind_group(0, &self.camera_bind_group, &[]);
+                rp.set_vertex_buffer(0, self.sphere_mesh.vertex_buffer.slice(..));
+                rp.set_index_buffer(
+                    self.sphere_mesh.index_buffer.slice(..),
+                    wgpu::IndexFormat::Uint16,
+                );
+                rp.set_vertex_buffer(1, inst_buf.slice(..));
+                rp.draw_indexed(0..self.sphere_mesh.index_count, 0, 0..self.instance_count);
+            }
         }
+
         self.queue.submit(std::iter::once(encoder.finish()));
         frame.present();
-
         Ok(())
     }
 }
