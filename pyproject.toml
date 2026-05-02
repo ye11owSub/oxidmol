@@ -21,7 +21,11 @@ dynamic = ["version"]
 dependencies = [
     "gemmi>=0.7.5",
     "httpx>=0.28.1",
+    "lark>=1.3.1",
+    "pydantic>=2.13.3",
     "pyqt6>=6.9.1",
+    "tomli-w>=1.2.0",
+    "typer>=0.25.0",
 ]
 
 [dependency-groups]
@@ -33,6 +37,9 @@ dev = [
     "pytest-qt>=4.0",
     "ruff>=0.13.1",
 ]
+
+[project.scripts]
+cordyceps-cli = "cordyceps.cli:app"
 
 [project.gui-scripts]
 cordyceps = "cordyceps.app:main"
@@ -110,6 +117,7 @@ extend-select = [
 fixture-parentheses = false
 
 [tool.mypy]
+plugins = ["pydantic.mypy"]
 mypy_path = ["python"]
 explicit_package_bases = true
 extra_checks = true
@@ -139,5 +147,6 @@ markers = [
 [[tool.mypy.overrides]]
 module = [
   "lsd.*",
+  "cordyceps.dsl.grammar",
 ]
 ignore_missing_imports = true

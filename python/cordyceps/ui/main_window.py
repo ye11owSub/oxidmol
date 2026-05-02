@@ -1,3 +1,4 @@
+from lark import Lark, UnexpectedInput
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QFileDialog,
@@ -7,6 +8,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from cordyceps.dsl.commands import LoadMoleculeResult
+from cordyceps.dsl.grammar import GRAMMAR
+from cordyceps.dsl.transformer import CordycepsTransformer
 from cordyceps.ui.command_bar import CommandBar
 from cordyceps.ui.menu import ActionToolBar, Menu
 from cordyceps.ui.object_panel import ObjectPanel
@@ -59,6 +63,9 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 1280, 800)
         self.setStyleSheet(_WINDOW_STYLE)
 
+        self._parser = Lark(GRAMMAR, parser="earley", start="program")
+        self._transformer = CordycepsTransformer()
+
         self._menu = Menu(self)
         self.setMenuBar(self._menu)
         self._toolbar = ActionToolBar(self)
@@ -105,8 +112,18 @@ class MainWindow(QMainWindow):
         self.command_bar.print(f" Loaded: {name}")
 
     def _on_command(self, cmd: str) -> None:
-        pass
+        try:
+            tree = self._parser.parse(cmd + "\n")
+            result = self._transformer.transform(tree)
+        except UnexpectedInput as e:
+            self.command_bar.print(f" Parse error: {e}")
+            return
+        except Exception as e:  # noqa: BLE001
+            self.command_bar.print(f" Error: {e}")
+            return
 
+        if isinstance(result, LoadMoleculeResult):
+            self.wgpu_widget.load_molecule_obj(result.molecule)
 
     def open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
