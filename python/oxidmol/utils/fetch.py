@@ -4,10 +4,10 @@ from pathlib import Path
 
 import httpx
 
-from cordyceps.lsd import Molecule
-from cordyceps.utils.loading import load
+from oxidmol.lsd import Molecule
+from oxidmol.utils.loading import load
 
-CACHE_DIR = Path.home() / ".cordyceps" / "cache"
+CACHE_DIR = Path.home() / ".oxidmol" / "cache"
 
 
 class Format(StrEnum):

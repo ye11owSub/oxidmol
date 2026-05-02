@@ -88,7 +88,7 @@ class CommandBar(QWidget):
 
         layout.addWidget(input_row)
 
-        self.print(" Cordyceps — open-source molecular viewer")
+        self.print(" OxidMol — open-source molecular viewer")
         self.print(" Drag-and-drop a .pdb or .cif file, or use File > Open")
 
     def print(self, text: str) -> None:

@@ -228,7 +228,7 @@ class Menu(QMenuBar):
 
         m.addSeparator()
 
-        self.about_action = QAction("About Cordyceps…", self)
+        self.about_action = QAction("About OxidMol…", self)
         m.addAction(self.about_action)
 
         report = QAction("Report Issue…", self)

@@ -5,7 +5,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QResizeEvent, QShowEvent
 from PyQt6.QtWidgets import QWidget
 
-from cordyceps.lsd import Molecule, PyWgpuRenderer
+from oxidmol.lsd import Molecule, WgpuRenderer
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class WgpuWidget(QWidget):
         self.setMinimumSize(640, 480)
         self.setAcceptDrops(True)
 
-        self.renderer: PyWgpuRenderer | None = None
+        self.renderer: WgpuRenderer | None = None
         self._timer = QTimer()
         self._timer.timeout.connect(self._render_frame)
 
@@ -39,7 +39,7 @@ class WgpuWidget(QWidget):
     def _init_renderer(self) -> None:
         try:
             hwnd = int(self.winId())
-            self.renderer = PyWgpuRenderer(hwnd, width=self.width(), height=self.height())
+            self.renderer = WgpuRenderer(hwnd, width=self.width(), height=self.height())
             logger.info("WGPU renderer initialised")
         except BaseException:
             logger.exception("Failed to initialise WGPU renderer")

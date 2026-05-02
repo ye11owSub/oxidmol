@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cordyceps.lsd import Molecule
+from oxidmol.lsd import Molecule
 
 
 @dataclass

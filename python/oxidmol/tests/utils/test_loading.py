@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from cordyceps.utils.loading import load
+from oxidmol.utils.loading import load
 
 DATA = Path(__file__).parents[4] / "tests" / "data"
 MINIMAL_CIF = DATA / "minimal.cif"

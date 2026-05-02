@@ -1,6 +1,6 @@
 import pytest
 
-lsd = pytest.importorskip("cordyceps.lsd", reason="Rust bindings not available")
+lsd = pytest.importorskip("oxidmol.lsd", reason="Rust bindings not available")
 
 
 def test_get_backend_info() -> None:
