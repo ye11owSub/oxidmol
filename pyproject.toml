@@ -1,5 +1,5 @@
 [project]
-name = "cordyceps"
+name = "oxidmol"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -39,10 +39,10 @@ dev = [
 ]
 
 [project.scripts]
-cordyceps-cli = "cordyceps.cli:app"
+oxidmol-cli = "oxidmol.cli:app"
 
 [project.gui-scripts]
-cordyceps = "cordyceps.app:main"
+oxidmol = "oxidmol.app:main"
 
 [build-system]
 requires = ["maturin>=1.9,<2.0"]
@@ -50,13 +50,13 @@ build-backend = "maturin"
 
 [tool.maturin]
 python-source = "python"
-module-name = "cordyceps.lsd"
+module-name = "oxidmol.lsd"
 features = ["pyo3/extension-module"]
 # It asks to use Cargo.lock to make the build reproducible
 locked = true
 
 [tool.maturin.package-data]
-"cordyceps" = [
+"oxidmol" = [
     "lsd/py.typed",
     "lsd/*.pyi"
 ]
@@ -136,7 +136,7 @@ warn_unused_configs = true
 warn_unused_ignores = true
 
 [tool.pytest.ini_options]
-testpaths = ["python/tests"]
+testpaths = ["python/oxidmol/tests"]
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
 markers = [
@@ -147,6 +147,6 @@ markers = [
 [[tool.mypy.overrides]]
 module = [
   "lsd.*",
-  "cordyceps.dsl.grammar",
+  "oxidmol.dsl.grammar",
 ]
 ignore_missing_imports = true
