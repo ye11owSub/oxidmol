@@ -1,5 +1,5 @@
-from PyQt6.QtGui import QAction, QKeySequence
-from PyQt6.QtWidgets import QMainWindow, QMenu, QMenuBar
+from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtWidgets import QMainWindow, QMenu, QMenuBar
 
 
 def _stub(parent: QMenuBar, label: str) -> QAction:

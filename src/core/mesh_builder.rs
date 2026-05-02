@@ -61,10 +61,7 @@ unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
 }
 
 unsafe fn slice_as_u8<T: Sized>(slice: &[T]) -> &[u8] {
-    std::slice::from_raw_parts(
-        slice.as_ptr() as *const u8,
-        slice.len() * std::mem::size_of::<T>(),
-    )
+    std::slice::from_raw_parts(slice.as_ptr() as *const u8, std::mem::size_of_val(slice))
 }
 
 // ---------------------------------------------------------------------------

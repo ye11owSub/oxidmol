@@ -34,10 +34,7 @@ unsafe fn as_bytes<T: Sized>(val: &T) -> &[u8] {
 }
 
 unsafe fn slice_as_bytes<T: Sized>(val: &[T]) -> &[u8] {
-    std::slice::from_raw_parts(
-        val.as_ptr() as *const u8,
-        val.len() * std::mem::size_of::<T>(),
-    )
+    std::slice::from_raw_parts(val.as_ptr() as *const u8, std::mem::size_of_val(val))
 }
 
 // ---- State -----------------------------------------------------------------
@@ -48,6 +45,7 @@ pub struct State<'a> {
     surface: wgpu::Surface<'a>,
     device: wgpu::Device,
     queue: wgpu::Queue,
+    #[allow(dead_code)]
     config: wgpu::SurfaceConfiguration,
     pub size: (u32, u32),
     render_pipeline: wgpu::RenderPipeline,

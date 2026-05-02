@@ -1,9 +1,9 @@
 import logging
 import os
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QResizeEvent, QShowEvent
-from PyQt6.QtWidgets import QWidget
+from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QDragEnterEvent, QDropEvent, QResizeEvent, QShowEvent
+from PySide6.QtWidgets import QWidget
 
 from oxidmol.lsd import Molecule, WgpuRenderer
 
@@ -15,7 +15,7 @@ _ACCEPTED_EXTS = (".pdb", ".cif")
 class WgpuWidget(QWidget):
     """WGPU-backed 3-D viewport, embeds native window handle."""
 
-    molecule_loaded = pyqtSignal(str)  # emits basename of loaded file
+    molecule_loaded = Signal(str)  # emits basename of loaded file
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -59,7 +59,7 @@ class WgpuWidget(QWidget):
             except BaseException:
                 logger.exception("Render error")
 
-    def resizeEvent(self, a0: QResizeEvent | None) -> None:
+    def resizeEvent(self, a0: QResizeEvent) -> None:
         super().resizeEvent(a0)
         # TODO: recreate depth texture on resize
 
