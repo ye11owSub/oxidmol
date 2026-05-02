@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
-from cordyceps.ui.main_window import MainWindow
+from oxidmol.ui.main_window import MainWindow
 
 
 def main() -> None:

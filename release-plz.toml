@@ -1,0 +1,14 @@
+[workspace]
+pr_labels = ["release"]
+
+# Commit types that appear in the changelog
+changelog_include_groups = [
+    "feat",
+    "fix",
+    "refactor",
+    "perf",
+    "revert",
+]
+
+[[package]]
+name = "oxidmol-render"

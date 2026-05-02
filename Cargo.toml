@@ -1,10 +1,10 @@
 [package]
-name = "lsd"
+name = "oxidmol-render"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "lsd"
+name = "oxidmol_render"
 crate-type = ["cdylib"]
 
 [dependencies]

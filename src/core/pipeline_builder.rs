@@ -5,6 +5,7 @@ pub struct PipelineBuilder {
     vertex_entry: String,
     fragment_entry: String,
     pixel_format: wgpu::TextureFormat,
+    depth_format: Option<wgpu::TextureFormat>,
     vertex_buffer_layouts: Vec<wgpu::VertexBufferLayout<'static>>,
 }
 
@@ -21,6 +22,7 @@ impl PipelineBuilder {
             vertex_entry: "dummy".to_string(),
             fragment_entry: "dummy".to_string(),
             pixel_format: wgpu::TextureFormat::Rgba8Unorm,
+            depth_format: None,
             vertex_buffer_layouts: Vec::new(),
         }
     }
@@ -40,11 +42,19 @@ impl PipelineBuilder {
         self.pixel_format = pixel_format;
     }
 
+    pub fn set_depth_format(&mut self, format: wgpu::TextureFormat) {
+        self.depth_format = Some(format);
+    }
+
     pub fn add_buffer_layout(&mut self, layout: wgpu::VertexBufferLayout<'static>) {
         self.vertex_buffer_layouts.push(layout)
     }
 
-    pub fn build_pipeline(&mut self, device: &wgpu::Device) -> wgpu::RenderPipeline {
+    pub fn build_pipeline(
+        &mut self,
+        device: &wgpu::Device,
+        bind_group_layouts: &[&wgpu::BindGroupLayout],
+    ) -> wgpu::RenderPipeline {
         let mut file_path = current_dir().unwrap();
         file_path.push("src/");
         file_path.push(self.shader_filename.as_str());
@@ -59,7 +69,7 @@ impl PipelineBuilder {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render pipeline layout"),
-            bind_group_layouts: &[],
+            bind_group_layouts,
             push_constant_ranges: &[],
         });
 
@@ -96,7 +106,13 @@ impl PipelineBuilder {
                 targets: &render_targets,
             }),
 
-            depth_stencil: None,
+            depth_stencil: self.depth_format.map(|format| wgpu::DepthStencilState {
+                format,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,

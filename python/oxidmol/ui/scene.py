@@ -1,11 +1,11 @@
 import logging
 import os
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QResizeEvent, QShowEvent
-from PyQt6.QtWidgets import QWidget
+from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QDragEnterEvent, QDropEvent, QResizeEvent, QShowEvent
+from PySide6.QtWidgets import QWidget
 
-from cordyceps.lsd import Molecule, PyWgpuRenderer
+from oxidmol.lsd import Molecule, WgpuRenderer
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ _ACCEPTED_EXTS = (".pdb", ".cif")
 class WgpuWidget(QWidget):
     """WGPU-backed 3-D viewport, embeds native window handle."""
 
-    molecule_loaded = pyqtSignal(str)  # emits basename of loaded file
+    molecule_loaded = Signal(str)  # emits basename of loaded file
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -25,7 +25,7 @@ class WgpuWidget(QWidget):
         self.setMinimumSize(640, 480)
         self.setAcceptDrops(True)
 
-        self.renderer: PyWgpuRenderer | None = None
+        self.renderer: WgpuRenderer | None = None
         self._timer = QTimer()
         self._timer.timeout.connect(self._render_frame)
 
@@ -39,7 +39,7 @@ class WgpuWidget(QWidget):
     def _init_renderer(self) -> None:
         try:
             hwnd = int(self.winId())
-            self.renderer = PyWgpuRenderer(hwnd, width=self.width(), height=self.height())
+            self.renderer = WgpuRenderer(hwnd, width=self.width(), height=self.height())
             logger.info("WGPU renderer initialised")
         except BaseException:
             logger.exception("Failed to initialise WGPU renderer")
@@ -59,7 +59,7 @@ class WgpuWidget(QWidget):
             except BaseException:
                 logger.exception("Render error")
 
-    def resizeEvent(self, a0: QResizeEvent | None) -> None:
+    def resizeEvent(self, a0: QResizeEvent) -> None:
         super().resizeEvent(a0)
         # TODO: recreate depth texture on resize
 

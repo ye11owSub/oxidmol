@@ -1,16 +1,16 @@
 import pytest
 from pytestqt.qtbot import QtBot
 
-from cordyceps.ui.main_window import MainWindow
-from cordyceps.ui.menu import Menu
-from cordyceps.ui.scene import WgpuWidget
+from oxidmol.ui.main_window import MainWindow
+from oxidmol.ui.menu import Menu
+from oxidmol.ui.scene import WgpuWidget
 
 
 @pytest.mark.ui
 def test_main_window_creation(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
-    assert window.windowTitle() == "Cordyceps"
+    assert window.windowTitle() == "OxidMol"
     assert not window.isVisible()
 
 

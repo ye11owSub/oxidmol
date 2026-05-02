@@ -1,6 +1,6 @@
 import time
 
-from cordyceps.utils.fetch import CACHE_DIR, Format, _cached_path
+from oxidmol.utils.fetch import CACHE_DIR, Format, _cached_path
 
 
 def info() -> dict[str, int | float | str | dict[str, int]]:

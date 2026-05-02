@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from cordyceps.utils import cache, fetch
-from cordyceps.utils.fetch import Format
+from oxidmol.utils import cache, fetch
+from oxidmol.utils.fetch import Format
 
 
 @pytest.fixture(autouse=True)

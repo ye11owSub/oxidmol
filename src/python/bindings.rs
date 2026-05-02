@@ -4,14 +4,10 @@ use pyo3::types::{PyDict, PyDictMethods};
 use pyo3::{pyclass, pyfunction, pymethods};
 
 use crate::core::renderer::State;
+use crate::python::molecule::PyMolecule;
 use crate::utils::error::WgpuError;
 
 #[pyfunction]
-/// WGPU Renderer for PyQt6 integration
-///
-/// Example:
-///     >>> renderer = PyWgpuRenderer(hwnd, 800, 600)
-///     >>> renderer.render()
 pub fn get_backend_info() -> PyResult<Py<PyDict>> {
     Python::with_gil(|py| {
         let dict = PyDict::new(py);
@@ -35,31 +31,14 @@ impl From<WgpuError> for PyErr {
 }
 
 #[pyclass]
-/// WGPU Renderer for PyQt6 integration
-///
-/// Example:
-///     >>> renderer = PyWgpuRenderer(hwnd, 800, 600)
-///     >>> renderer.render()
-pub struct PyWgpuRenderer {
+pub struct WgpuRenderer {
     inner: State<'static>,
 }
 
 #[pymethods]
-impl PyWgpuRenderer {
+impl WgpuRenderer {
     #[new]
     #[pyo3(signature = (window_handle, *, width = 800, height = 600))]
-    /// Create a new WGPU renderer
-    ///
-    /// Args:
-    ///     window_handle: Native window handle (HWND on Windows)
-    ///     width: Initial width in pixels
-    ///     height: Initial height in pixels
-    ///
-    /// Returns:
-    ///     PyWgpuRenderer instance
-    ///
-    /// Raises:
-    ///     RuntimeError: If initialization fails
     pub fn new(window_handle: usize, width: u32, height: u32) -> PyResult<Self> {
         let inner = pollster::block_on(State::new(window_handle, width, height));
 
@@ -67,15 +46,25 @@ impl PyWgpuRenderer {
     }
 
     #[pyo3(name = "render")]
-    /// Render a frame
-    ///
-    /// Raises:
-    ///     RuntimeError: If rendering fails
     pub fn py_render(&self) -> PyResult<()> {
         self.inner
             .render()
             .map_err(|e| PyRuntimeError::new_err(format!("Render failed: {}", e)))
     }
+    /// Load a PDB or mmCIF file (.pdb / .cif) and upload atoms to the GPU.
+    pub fn load_molecule(&mut self, path: String) -> PyResult<()> {
+        self.inner
+            .load_molecule(&path)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+    }
+
+    /// Upload an already-parsed Molecule to the GPU.
+    pub fn load_molecule_obj(&mut self, mol: &PyMolecule) -> PyResult<()> {
+        self.inner
+            .upload_molecule(&mol.inner)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+    }
+
     #[getter]
     /// Get current width
     pub fn width(&self) -> u32 {

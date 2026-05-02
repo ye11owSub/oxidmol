@@ -1,6 +1,6 @@
 from lark import Lark, UnexpectedInput
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
     QFileDialog,
     QMainWindow,
     QSplitter,
@@ -8,13 +8,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from cordyceps.dsl.commands import LoadMoleculeResult
-from cordyceps.dsl.grammar import GRAMMAR
-from cordyceps.dsl.transformer import CordycepsTransformer
-from cordyceps.ui.command_bar import CommandBar
-from cordyceps.ui.menu import ActionToolBar, Menu
-from cordyceps.ui.object_panel import ObjectPanel
-from cordyceps.ui.scene import WgpuWidget
+from oxidmol.dsl.commands import LoadMoleculeResult
+from oxidmol.dsl.grammar import GRAMMAR
+from oxidmol.dsl.transformer import CordycepsTransformer
+from oxidmol.ui.command_bar import CommandBar
+from oxidmol.ui.menu import ActionToolBar, Menu
+from oxidmol.ui.object_panel import ObjectPanel
+from oxidmol.ui.scene import WgpuWidget
 
 _WINDOW_STYLE = """
 QMainWindow {
@@ -59,7 +59,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Cordyceps")
+        self.setWindowTitle("OxidMol")
         self.setGeometry(100, 100, 1280, 800)
         self.setStyleSheet(_WINDOW_STYLE)
 

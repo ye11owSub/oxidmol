@@ -6,14 +6,14 @@ use pyo3::types::PyModuleMethods;
 use pyo3::{pymodule, types::PyModule, PyResult, Python};
 use pyo3::{wrap_pyfunction, Bound};
 
-use crate::python::{get_backend_info, PyMolecule, PyWgpuRenderer};
+use crate::python::{get_backend_info, PyMolecule, WgpuRenderer};
 
 #[pymodule]
 #[pyo3(name = "lsd")]
 fn wgpu_integration_py(_py: Python, module: Bound<'_, PyModule>) -> PyResult<()> {
     init_logging();
 
-    module.add_class::<PyWgpuRenderer>()?;
+    module.add_class::<WgpuRenderer>()?;
     module.add_class::<PyMolecule>()?;
     module.add_function(wrap_pyfunction!(get_backend_info, &module)?)?;
 

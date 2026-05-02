@@ -1,5 +1,5 @@
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -50,7 +50,7 @@ QLineEdit:focus {
 
 
 class CommandBar(QWidget):
-    command_entered = pyqtSignal(str)
+    command_entered = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -88,7 +88,7 @@ class CommandBar(QWidget):
 
         layout.addWidget(input_row)
 
-        self.print(" Cordyceps — open-source molecular viewer")
+        self.print(" OxidMol — open-source molecular viewer")
         self.print(" Drag-and-drop a .pdb or .cif file, or use File > Open")
 
     def print(self, text: str) -> None:

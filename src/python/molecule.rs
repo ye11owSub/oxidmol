@@ -13,7 +13,7 @@ impl From<LoadError> for PyErr {
 
 #[pyclass(name = "Molecule")]
 pub struct PyMolecule {
-    inner: Molecule,
+    pub(crate) inner: Molecule,
 }
 
 #[pymethods]

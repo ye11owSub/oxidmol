@@ -1,10 +1,10 @@
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import cordyceps.utils.fetch as fetch_mod
 import httpx
+import oxidmol.utils.fetch as fetch_mod
 import pytest
-from cordyceps.utils.fetch import Format, _cached_path, _urls_for, fetch
+from oxidmol.utils.fetch import Format, _cached_path, _urls_for, fetch
 
 
 def test_urls_for_cif_has_rcsb_first() -> None:
@@ -59,7 +59,7 @@ def test_fetch_normalises_to_uppercase(tmp_path: Path, monkeypatch: pytest.Monke
     cached.write_text("data_1CRN\n")
 
     mock_mol = MagicMock()
-    with patch("cordyceps.utils.fetch.load", return_value=mock_mol):
+    with patch("oxidmol.utils.fetch.load", return_value=mock_mol):
         result = fetch("1crn", fmt=Format.CIF)
 
     assert result is mock_mol
@@ -129,7 +129,7 @@ def test_fetch_many_returns_dict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
         cached.write_text(f"data_{pdb_id}\n")
 
     mock_mol = MagicMock()
-    with patch("cordyceps.utils.fetch.load", return_value=mock_mol):
+    with patch("oxidmol.utils.fetch.load", return_value=mock_mol):
         result = fetch_mod.fetch_many(["1ABC", "2DEF"], fmt=Format.CIF)
 
     assert set(result.keys()) == {"1ABC", "2DEF"}

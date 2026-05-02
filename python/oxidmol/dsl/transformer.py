@@ -1,8 +1,8 @@
 from lark import Transformer, v_args
 
-from cordyceps import fetch, load
-from cordyceps.dsl.commands import CommandResult, LoadMoleculeResult
-from cordyceps.utils.fetch import Format
+from oxidmol import fetch, load
+from oxidmol.dsl.commands import CommandResult, LoadMoleculeResult
+from oxidmol.utils.fetch import Format
 
 
 @v_args(inline=True)
