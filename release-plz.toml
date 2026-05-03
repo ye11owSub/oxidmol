@@ -1,14 +1,6 @@
 [workspace]
 pr_labels = ["release"]
-
-# Commit types that appear in the changelog
-changelog_include_groups = [
-    "feat",
-    "fix",
-    "refactor",
-    "perf",
-    "revert",
-]
+changelog_config = "cliff.toml"
 
 [[package]]
 name = "oxidmol-render"
