@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import override
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QDragEnterEvent, QDropEvent, QResizeEvent, QShowEvent
@@ -29,12 +30,32 @@ class WgpuWidget(QWidget):
         self._timer = QTimer()
         self._timer.timeout.connect(self._render_frame)
 
+        self.setAttribute(Qt.WidgetAttribute.WA_PaintOnScreen, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+
     # ── lifecycle ────────────────────────────────────────────────────────────
+
+    @override
+    def paintEngine(self) -> None: # type: ignore
+        return None
+
+    @override
+    def paintEvent(self, event) -> None: # noqa: ARG002
+        return None
 
     def showEvent(self, a0: QShowEvent | None) -> None:  # noqa: ARG002
         if self.renderer is None:
             self._init_renderer()
         self._timer.start(16)
+
+    def resizeEvent(self, a0: QResizeEvent) -> None:
+        new_size = a0.size()
+        if self.renderer is None:
+            return
+        self.renderer.resize(new_size.width(), new_size.height())
+        # TODO: recreate depth texture on resize
+
 
     def _init_renderer(self) -> None:
         try:
@@ -59,10 +80,6 @@ class WgpuWidget(QWidget):
             except BaseException:
                 logger.exception("Render error")
 
-    def resizeEvent(self, a0: QResizeEvent) -> None:
-        super().resizeEvent(a0)
-        # TODO: recreate depth texture on resize
-
     # ── molecule loading ─────────────────────────────────────────────────────
 
     def load_file(self, path: str) -> None:
@@ -75,7 +92,7 @@ class WgpuWidget(QWidget):
             name = os.path.basename(path)
             self.molecule_loaded.emit(name)
             logger.info("Loaded molecule: %s", path)
-        except BaseException:
+        except Exception:
             logger.exception("Failed to load molecule: %s", path)
 
     def load_molecule_obj(self, mol: Molecule) -> None:

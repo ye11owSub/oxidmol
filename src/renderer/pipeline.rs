@@ -89,6 +89,13 @@ impl PipelineBuilder {
                 buffers: &self.vertex_buffer_layouts,
             },
 
+            fragment: Some(wgpu::FragmentState {
+                module: &shader_module,
+                entry_point: Some(&self.fragment_entry),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                targets: &render_targets,
+            }),
+
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
@@ -98,13 +105,6 @@ impl PipelineBuilder {
                 unclipped_depth: false,
                 conservative: false,
             },
-
-            fragment: Some(wgpu::FragmentState {
-                module: &shader_module,
-                entry_point: Some(&self.fragment_entry),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                targets: &render_targets,
-            }),
 
             depth_stencil: self.depth_format.map(|format| wgpu::DepthStencilState {
                 format,

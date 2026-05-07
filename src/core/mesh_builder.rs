@@ -1,3 +1,4 @@
+use bytemuck::{cast_slice, Pod, Zeroable};
 use glam::Vec3;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
@@ -6,6 +7,7 @@ use wgpu::util::{BufferInitDescriptor, DeviceExt};
 // ---------------------------------------------------------------------------
 
 #[repr(C)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct Vertex {
     position: Vec3,
     color: Vec3,
@@ -26,6 +28,7 @@ impl Vertex {
 
 /// Vertex used for sphere geometry — position only (normal = position on unit sphere).
 #[repr(C)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct SphereVertex {
     pub position: Vec3,
 }
@@ -53,18 +56,6 @@ pub struct Mesh {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
-    ::core::slice::from_raw_parts((p as *const T) as *const u8, ::core::mem::size_of::<T>())
-}
-
-unsafe fn slice_as_u8<T: Sized>(slice: &[T]) -> &[u8] {
-    std::slice::from_raw_parts(slice.as_ptr() as *const u8, std::mem::size_of_val(slice))
-}
-
-// ---------------------------------------------------------------------------
 // Geometry builders
 // ---------------------------------------------------------------------------
 
@@ -86,7 +77,7 @@ pub fn make_triangle(device: &wgpu::Device) -> wgpu::Buffer {
 
     device.create_buffer_init(&BufferInitDescriptor {
         label: Some("Triangle vertex buffer"),
-        contents: unsafe { any_as_u8_slice(&vertices) },
+        contents: cast_slice(&vertices),
         usage: wgpu::BufferUsages::VERTEX,
     })
 }
@@ -114,12 +105,12 @@ pub fn make_quad(device: &wgpu::Device) -> Mesh {
 
     let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
         label: Some("Quad vertex buffer"),
-        contents: unsafe { any_as_u8_slice(&vertices) },
+        contents: cast_slice(&vertices),
         usage: wgpu::BufferUsages::VERTEX,
     });
     let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
         label: Some("Quad index buffer"),
-        contents: unsafe { any_as_u8_slice(&indices) },
+        contents: cast_slice(&indices),
         usage: wgpu::BufferUsages::INDEX,
     });
 
@@ -163,12 +154,12 @@ pub fn make_sphere(device: &wgpu::Device, stacks: u32, slices: u32) -> Mesh {
 
     let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
         label: Some("Sphere vertex buffer"),
-        contents: unsafe { slice_as_u8(&vertices) },
+        contents: cast_slice(&vertices),
         usage: wgpu::BufferUsages::VERTEX,
     });
     let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
         label: Some("Sphere index buffer"),
-        contents: unsafe { slice_as_u8(&indices) },
+        contents: cast_slice(&indices),
         usage: wgpu::BufferUsages::INDEX,
     });
 
@@ -216,14 +207,6 @@ mod tests {
             layout.attributes[1].offset,
             std::mem::size_of::<Vec3>() as u64
         );
-    }
-
-    #[test]
-    fn test_any_as_u8_slice() {
-        let test_data: [f32; 3] = [1.0, 2.0, 3.0];
-        let slice = unsafe { any_as_u8_slice(&test_data) };
-        assert_eq!(slice.len(), std::mem::size_of::<[f32; 3]>());
-        assert!(!slice.is_empty());
     }
 
     #[test]

@@ -1,5 +1,6 @@
 pub mod core;
 pub mod python;
+pub mod renderer;
 pub mod utils;
 
 use pyo3::types::PyModuleMethods;

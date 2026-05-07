@@ -1,9 +1,8 @@
 use crate::core::element::Element;
 use crate::utils::LoadError;
+use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 use pdbtbx::StrictnessLevel;
-
-// Needed for FlatAtom::get_instance_layout
 use wgpu;
 
 #[derive(Debug, Clone)]
@@ -17,14 +16,12 @@ pub struct Atom {
     pub het: bool,
 }
 
-/// Compact GPU-ready atom representation.
-/// Memory layout: position=0 (12 B), radius=12 (4 B), color=16 (12 B) — stride 28 B.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct FlatAtom {
-    pub position: Vec3,  // offset  0
-    pub radius: f32,     // offset 12
-    pub color: [f32; 3], // offset 16
+    pub position: Vec3,
+    pub radius: f32,
+    pub color: [f32; 3],
 }
 
 impl FlatAtom {
