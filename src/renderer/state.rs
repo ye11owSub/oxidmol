@@ -1,43 +1,15 @@
-use glam::Vec3;
+use bytemuck::{bytes_of, cast_slice};
+use glam::{Mat4, Vec3};
 use wgpu::util::DeviceExt;
 
 use crate::{
-    core::{mesh_builder, molecule::FlatAtom, Mesh, Molecule, PipelineBuilder},
-    utils::{create_projection_matrix, create_view_matrix, LoadError, QtWindowHandle},
+    core::{mesh_builder, molecule::FlatAtom, Mesh, Molecule},
+    renderer::camera::{make_projection, CameraUniform},
+    renderer::pipeline::PipelineBuilder,
+    utils::{LoadError, QtWindowHandle},
 };
 
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
-
-#[repr(C)]
-struct CameraUniform {
-    view_proj: [[f32; 4]; 4],
-}
-
-/// Builds a perspective matrix compatible with wgpu's NDC (depth [0, 1]).
-fn make_projection(fov_y: f32, aspect: f32, near: f32, far: f32) -> glam::Mat4 {
-    // create_projection_matrix uses glam's perspective_rh (depth [-1, 1]).
-    // Apply correction to remap Z from [-1, 1] → [0, 1] as wgpu expects.
-    let proj = create_projection_matrix(fov_y, aspect, near, far);
-    let correction = glam::Mat4::from_cols_array_2d(&[
-        [1.0, 0.0, 0.0, 0.0],
-        [0.0, 1.0, 0.0, 0.0],
-        [0.0, 0.0, 0.5, 0.0],
-        [0.0, 0.0, 0.5, 1.0],
-    ]);
-    correction * proj
-}
-
-// ---- byte helpers ----------------------------------------------------------
-
-unsafe fn as_bytes<T: Sized>(val: &T) -> &[u8] {
-    std::slice::from_raw_parts(val as *const T as *const u8, std::mem::size_of::<T>())
-}
-
-unsafe fn slice_as_bytes<T: Sized>(val: &[T]) -> &[u8] {
-    std::slice::from_raw_parts(val.as_ptr() as *const u8, std::mem::size_of_val(val))
-}
-
-// ---- State -----------------------------------------------------------------
 
 pub struct State<'a> {
     #[allow(dead_code)]
@@ -118,7 +90,7 @@ impl<'a> State<'a> {
         };
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera buffer"),
-            contents: unsafe { as_bytes(&camera_data) },
+            contents: bytes_of(&camera_data),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -216,7 +188,7 @@ impl<'a> State<'a> {
         let eye = center + Vec3::new(0.0, 0.0, dist + max_r);
         let far = (dist + max_r) * 4.0;
 
-        let view = create_view_matrix(eye, center, Vec3::Y);
+        let view = Mat4::look_at_rh(eye, center, Vec3::Y);
         let aspect = self.size.0 as f32 / self.size.1 as f32;
         let proj = make_projection(fov_y, aspect, 0.1, far);
         let view_proj = proj * view;
@@ -225,14 +197,14 @@ impl<'a> State<'a> {
             view_proj: view_proj.to_cols_array_2d(),
         };
         self.queue
-            .write_buffer(&self.camera_buffer, 0, unsafe { as_bytes(&camera_data) });
+            .write_buffer(&self.camera_buffer, 0, bytes_of(&camera_data));
 
         // Upload atom instance data
         let instance_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Atom instance buffer"),
-                contents: unsafe { slice_as_bytes(&atoms) },
+                contents: cast_slice(&atoms),
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
@@ -246,6 +218,35 @@ impl<'a> State<'a> {
     pub fn load_molecule(&mut self, path: &str) -> Result<(), LoadError> {
         let mol = Molecule::load(path)?;
         self.upload_molecule(&mol)
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
+        if width > 0 && height > 0 {
+            self.size = (width, height);
+            self.config.width = width;
+            self.config.height = height;
+            self.surface.configure(&self.device, &self.config);
+
+            self.depth_view = Self::make_depth_view(&self.device, width, height);
+
+            let aspect = self.config.width as f32 / self.config.height as f32;
+
+            let projection = glam::Mat4::perspective_lh(45.0_f32.to_radians(), aspect, 0.1, 100.0);
+
+            let view = glam::Mat4::look_at_lh(
+                glam::Vec3::new(0.0, 0.0, -5.0),
+                glam::Vec3::ZERO,
+                glam::Vec3::Y,
+            );
+
+            let view_proj = projection * view;
+
+            self.queue.write_buffer(
+                &self.camera_buffer,
+                0,
+                bytes_of(&view_proj.to_cols_array_2d()),
+            );
+        }
     }
 
     pub fn render(&self) -> Result<(), Box<dyn std::error::Error>> {

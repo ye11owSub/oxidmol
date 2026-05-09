@@ -3,8 +3,8 @@ use pyo3::prelude::{Py, PyErr, PyResult, Python};
 use pyo3::types::{PyDict, PyDictMethods};
 use pyo3::{pyclass, pyfunction, pymethods};
 
-use crate::core::renderer::State;
 use crate::python::molecule::PyMolecule;
+use crate::renderer::State;
 use crate::utils::error::WgpuError;
 
 #[pyfunction]
@@ -50,6 +50,10 @@ impl WgpuRenderer {
         self.inner
             .render()
             .map_err(|e| PyRuntimeError::new_err(format!("Render failed: {}", e)))
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
+        self.inner.resize(width, height);
     }
     /// Load a PDB or mmCIF file (.pdb / .cif) and upload atoms to the GPU.
     pub fn load_molecule(&mut self, path: String) -> PyResult<()> {
