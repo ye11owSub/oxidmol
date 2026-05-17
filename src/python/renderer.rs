@@ -55,6 +55,20 @@ impl WgpuRenderer {
     pub fn resize(&mut self, width: u32, height: u32) {
         self.inner.resize(width, height);
     }
+
+    fn reset(&mut self) {
+        self.inner.camera.reset();
+    }
+    fn zoom(&mut self, delta: f32) {
+        self.inner.camera.zoom(delta);
+    }
+    fn orbit(&mut self, dx: f32, dy: f32) {
+        self.inner.camera.orbit(dx, dy);
+    }
+    fn pan(&mut self, dx: f32, dy: f32) {
+        self.inner.camera.pan(dx, dy);
+    }
+
     /// Load a PDB or mmCIF file (.pdb / .cif) and upload atoms to the GPU.
     pub fn load_molecule(&mut self, path: String) -> PyResult<()> {
         self.inner

@@ -50,22 +50,26 @@ impl PipelineBuilder {
         self.vertex_buffer_layouts.push(layout)
     }
 
+    fn read_shader_soruce(&self) -> String {
+        let mut file_path = current_dir().unwrap();
+        file_path.push("src/");
+        file_path.push(self.shader_filename.as_str());
+        let file_path = file_path.into_os_string().into_string().unwrap();
+
+        fs::read_to_string(file_path).expect("Can't read source code")
+    }
+
     pub fn build_pipeline(
         &mut self,
         device: &wgpu::Device,
         bind_group_layouts: &[&wgpu::BindGroupLayout],
     ) -> wgpu::RenderPipeline {
-        let mut file_path = current_dir().unwrap();
-        file_path.push("src/");
-        file_path.push(self.shader_filename.as_str());
-        let file_path = file_path.into_os_string().into_string().unwrap();
-        let source_code = fs::read_to_string(file_path).expect("Can't read source code");
+        let source_code = self.read_shader_soruce();
 
-        let shader_module_descriptor = wgpu::ShaderModuleDescriptor {
+        let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader Module"),
             source: wgpu::ShaderSource::Wgsl(source_code.into()),
-        };
-        let shader_module = device.create_shader_module(shader_module_descriptor);
+        });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render pipeline layout"),
@@ -113,6 +117,7 @@ impl PipelineBuilder {
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
+
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
