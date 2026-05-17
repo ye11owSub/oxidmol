@@ -1,10 +1,10 @@
 use bytemuck::{bytes_of, cast_slice};
-use glam::{Mat4, Vec3};
+use glam;
 use wgpu::util::DeviceExt;
 
 use crate::{
-    core::{mesh_builder, molecule::FlatAtom, Mesh, Molecule},
-    renderer::camera::{make_projection, CameraUniform},
+    core::{mesh_builder, FlatAtom, Mesh, Molecule},
+    renderer::camera::{Camera, CameraUniform},
     renderer::pipeline::PipelineBuilder,
     utils::{LoadError, QtWindowHandle},
 };
@@ -23,6 +23,7 @@ pub struct State<'a> {
     render_pipeline: wgpu::RenderPipeline,
     sphere_mesh: Mesh,
     depth_view: wgpu::TextureView,
+    pub camera: Camera,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     instance_buffer: Option<wgpu::Buffer>,
@@ -81,53 +82,56 @@ impl<'a> State<'a> {
         };
         surface.configure(&device, &config);
 
-        // Depth texture
         let depth_view = Self::make_depth_view(&device, width, height);
 
-        // Camera uniform buffer (identity as placeholder)
-        let camera_data = CameraUniform {
-            view_proj: glam::Mat4::IDENTITY.to_cols_array_2d(),
+        let camera = Camera {
+            aspect: config.width as f32 / config.height as f32,
+            ..Camera::default()
         };
+
+        let mut camera_uniform = CameraUniform::new();
+        camera_uniform.update_view_proj(&camera);
+
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera buffer"),
-            contents: bytes_of(&camera_data),
+            contents: bytes_of(&camera_uniform),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let camera_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Camera BGL"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Camera BGL"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
 
         let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Camera bind group"),
-            layout: &camera_bgl,
+            layout: &camera_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: camera_buffer.as_entire_binding(),
             }],
         });
 
-        // Sphere mesh (16×16 stacks/slices — smooth enough, cheap enough)
         let sphere_mesh = mesh_builder::make_sphere(&device, 16, 16);
 
-        // Render pipeline
         let mut pipeline_builder = PipelineBuilder::new();
         pipeline_builder.add_buffer_layout(mesh_builder::SphereVertex::get_layout());
         pipeline_builder.add_buffer_layout(FlatAtom::get_instance_layout());
         pipeline_builder.set_shader_module("shaders/shader.wgsl", "vs_main", "fs_main");
         pipeline_builder.set_pixel_format(config.format);
         pipeline_builder.set_depth_format(DEPTH_FORMAT);
-        let render_pipeline = pipeline_builder.build_pipeline(&device, &[&camera_bgl]);
+        let render_pipeline =
+            pipeline_builder.build_pipeline(&device, &[&camera_bind_group_layout]);
 
         Self {
             instance,
@@ -139,6 +143,7 @@ impl<'a> State<'a> {
             render_pipeline,
             sphere_mesh,
             depth_view,
+            camera,
             camera_buffer,
             camera_bind_group,
             instance_buffer: None,
@@ -165,7 +170,6 @@ impl<'a> State<'a> {
             .create_view(&wgpu::TextureViewDescriptor::default())
     }
 
-    /// Upload an already-parsed molecule to the GPU.
     pub fn upload_molecule(&mut self, mol: &Molecule) -> Result<(), LoadError> {
         let atoms = mol.atoms_flat.clone();
 
@@ -176,30 +180,23 @@ impl<'a> State<'a> {
         }
 
         // Bounding sphere: center + max radius
-        let center = atoms.iter().fold(Vec3::ZERO, |acc, a| acc + a.position) / atoms.len() as f32;
+        let center = atoms
+            .iter()
+            .fold(glam::Vec3::ZERO, |acc, a| acc + a.position)
+            / atoms.len() as f32;
         let max_r = atoms
             .iter()
             .map(|a| (a.position - center).length() + a.radius)
             .fold(0.0_f32, f32::max);
 
-        // Position camera so the molecule fits in the 45° FOV
-        let fov_y: f32 = 45.0_f32.to_radians();
-        let dist = max_r / (fov_y * 0.5).tan();
-        let eye = center + Vec3::new(0.0, 0.0, dist + max_r);
-        let far = (dist + max_r) * 4.0;
+        let fov_y = self.camera.fovy.to_radians();
+        let dist = max_r / (fov_y * 0.5).tan() + max_r;
+        self.camera.target = center;
+        self.camera.eye = center + glam::Vec3::new(0.0, 0.0, dist);
+        self.camera.up = glam::Vec3::Y;
+        self.camera.znear = 0.1;
+        self.camera.zfar = dist * 4.0;
 
-        let view = Mat4::look_at_rh(eye, center, Vec3::Y);
-        let aspect = self.size.0 as f32 / self.size.1 as f32;
-        let proj = make_projection(fov_y, aspect, 0.1, far);
-        let view_proj = proj * view;
-
-        let camera_data = CameraUniform {
-            view_proj: view_proj.to_cols_array_2d(),
-        };
-        self.queue
-            .write_buffer(&self.camera_buffer, 0, bytes_of(&camera_data));
-
-        // Upload atom instance data
         let instance_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -214,7 +211,6 @@ impl<'a> State<'a> {
         Ok(())
     }
 
-    /// Load a PDB or mmCIF file and upload atom data to the GPU.
     pub fn load_molecule(&mut self, path: &str) -> Result<(), LoadError> {
         let mol = Molecule::load(path)?;
         self.upload_molecule(&mol)
@@ -229,23 +225,7 @@ impl<'a> State<'a> {
 
             self.depth_view = Self::make_depth_view(&self.device, width, height);
 
-            let aspect = self.config.width as f32 / self.config.height as f32;
-
-            let projection = glam::Mat4::perspective_lh(45.0_f32.to_radians(), aspect, 0.1, 100.0);
-
-            let view = glam::Mat4::look_at_lh(
-                glam::Vec3::new(0.0, 0.0, -5.0),
-                glam::Vec3::ZERO,
-                glam::Vec3::Y,
-            );
-
-            let view_proj = projection * view;
-
-            self.queue.write_buffer(
-                &self.camera_buffer,
-                0,
-                bytes_of(&view_proj.to_cols_array_2d()),
-            );
+            self.camera.aspect = width as f32 / height as f32;
         }
     }
 
@@ -254,6 +234,11 @@ impl<'a> State<'a> {
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut camera_uniform = CameraUniform::new();
+        camera_uniform.update_view_proj(&self.camera);
+        self.queue
+            .write_buffer(&self.camera_buffer, 0, bytes_of(&camera_uniform));
 
         let mut encoder = self
             .device

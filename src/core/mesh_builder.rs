@@ -2,10 +2,6 @@ use bytemuck::{cast_slice, Pod, Zeroable};
 use glam::Vec3;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
-// ---------------------------------------------------------------------------
-// Vertex types
-// ---------------------------------------------------------------------------
-
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct Vertex {
@@ -19,14 +15,13 @@ impl Vertex {
             wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
 
         wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as u64,
+            array_stride: std::mem::size_of::<Self>() as u64,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &ATTRIBUTES,
         }
     }
 }
 
-/// Vertex used for sphere geometry — position only (normal = position on unit sphere).
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct SphereVertex {
@@ -45,19 +40,11 @@ impl SphereVertex {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Mesh
-// ---------------------------------------------------------------------------
-
 pub struct Mesh {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub index_count: u32,
 }
-
-// ---------------------------------------------------------------------------
-// Geometry builders
-// ---------------------------------------------------------------------------
 
 pub fn make_triangle(device: &wgpu::Device) -> wgpu::Buffer {
     let vertices: [Vertex; 3] = [
@@ -169,10 +156,6 @@ pub fn make_sphere(device: &wgpu::Device, stacks: u32, slices: u32) -> Mesh {
         index_count,
     }
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

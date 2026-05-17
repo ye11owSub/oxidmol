@@ -1,5 +1,5 @@
-pub mod bindings;
 pub mod molecule;
+pub mod renderer;
 
-pub use bindings::{create_shader_from_file, get_backend_info, WgpuRenderer};
 pub use molecule::PyMolecule;
+pub use renderer::{create_shader_from_file, get_backend_info, WgpuRenderer};
