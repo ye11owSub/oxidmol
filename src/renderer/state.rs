@@ -6,19 +6,18 @@ use crate::{
     core::{mesh_builder, FlatAtom, Mesh, Molecule},
     renderer::{
         camera::{Camera, CameraUniform},
+        depth_texture::DepthTexture,
         gpu_context::GpuContext,
         pipeline::PipelineBuilder,
     },
     utils::LoadError,
 };
 
-const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
-
 pub struct State<'a> {
     pub gpu: GpuContext<'a>,
     render_pipeline: wgpu::RenderPipeline,
     sphere_mesh: Mesh,
-    depth_view: wgpu::TextureView,
+    depth_view: DepthTexture,
     pub camera: Camera,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
@@ -29,7 +28,7 @@ pub struct State<'a> {
 impl<'a> State<'a> {
     pub async fn new(window_handle: usize, width: u32, height: u32) -> Self {
         let gpu_context = GpuContext::new(window_handle, width, height).await;
-        let depth_view = Self::make_depth_view(&gpu_context.device, width, height);
+        let depth_view = DepthTexture::new(&gpu_context.device, width, height);
 
         let camera = Camera {
             aspect: gpu_context.config.width as f32 / gpu_context.config.height as f32,
@@ -83,7 +82,7 @@ impl<'a> State<'a> {
         pipeline_builder.add_buffer_layout(FlatAtom::get_instance_layout());
         pipeline_builder.set_shader_module("shaders/shader.wgsl", "vs_main", "fs_main");
         pipeline_builder.set_pixel_format(gpu_context.config.format);
-        pipeline_builder.set_depth_format(DEPTH_FORMAT);
+        pipeline_builder.set_depth_format(depth_view.format());
         let render_pipeline =
             pipeline_builder.build_pipeline(&gpu_context.device, &[&camera_bind_group_layout]);
 
@@ -98,25 +97,6 @@ impl<'a> State<'a> {
             instance_buffer: None,
             instance_count: 0,
         }
-    }
-
-    fn make_depth_view(device: &wgpu::Device, width: u32, height: u32) -> wgpu::TextureView {
-        device
-            .create_texture(&wgpu::TextureDescriptor {
-                label: Some("Depth texture"),
-                size: wgpu::Extent3d {
-                    width,
-                    height,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: DEPTH_FORMAT,
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[],
-            })
-            .create_view(&wgpu::TextureViewDescriptor::default())
     }
 
     pub fn upload_molecule(&mut self, mol: &Molecule) -> Result<(), LoadError> {
@@ -174,7 +154,7 @@ impl<'a> State<'a> {
                 .surface
                 .configure(&self.gpu.device, &self.gpu.config);
 
-            self.depth_view = Self::make_depth_view(&self.gpu.device, width, height);
+            self.depth_view.resize(&self.gpu.device, width, height);
 
             self.camera.aspect = width as f32 / height as f32;
         }
@@ -215,14 +195,7 @@ impl<'a> State<'a> {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.depth_view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
+                depth_stencil_attachment: Some(self.depth_view.attachment()),
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
