@@ -86,12 +86,12 @@ impl WgpuRenderer {
     #[getter]
     /// Get current width
     pub fn width(&self) -> u32 {
-        self.inner.size.0
+        self.inner.gpu.config.width
     }
 
     #[getter]
     /// Get current height
     pub fn height(&self) -> u32 {
-        self.inner.size.1
+        self.inner.gpu.config.height
     }
 }

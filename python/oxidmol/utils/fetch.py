@@ -54,7 +54,7 @@ async def _download(urls: list[str]) -> bytes:
         for url in urls:
             try:
                 r = await client.get(url)
-                r.raise_for_status()
+                _ = r.raise_for_status()
             except httpx.HTTPError as e:
                 last_error = e
             else:
@@ -76,7 +76,7 @@ async def _download_file(
 
     cached.parent.mkdir(parents=True, exist_ok=True)
     data = await _download(_urls_for(entry_id, fmt))
-    cached.write_bytes(data)
+    _ = cached.write_bytes(data)
     return str(cached)
 
 

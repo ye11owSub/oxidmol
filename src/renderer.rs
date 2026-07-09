@@ -1,4 +1,5 @@
 mod camera;
+mod gpu_context;
 mod pipeline;
 pub mod state;
 

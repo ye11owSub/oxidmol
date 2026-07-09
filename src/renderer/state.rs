@@ -4,22 +4,18 @@ use wgpu::util::DeviceExt;
 
 use crate::{
     core::{mesh_builder, FlatAtom, Mesh, Molecule},
-    renderer::camera::{Camera, CameraUniform},
-    renderer::pipeline::PipelineBuilder,
-    utils::{LoadError, QtWindowHandle},
+    renderer::{
+        camera::{Camera, CameraUniform},
+        gpu_context::GpuContext,
+        pipeline::PipelineBuilder,
+    },
+    utils::LoadError,
 };
 
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 pub struct State<'a> {
-    #[allow(dead_code)]
-    instance: wgpu::Instance,
-    surface: wgpu::Surface<'a>,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    #[allow(dead_code)]
-    config: wgpu::SurfaceConfiguration,
-    pub size: (u32, u32),
+    pub gpu: GpuContext<'a>,
     render_pipeline: wgpu::RenderPipeline,
     sphere_mesh: Mesh,
     depth_view: wgpu::TextureView,
@@ -32,114 +28,67 @@ pub struct State<'a> {
 
 impl<'a> State<'a> {
     pub async fn new(window_handle: usize, width: u32, height: u32) -> Self {
-        let size = (width, height);
-        let window = QtWindowHandle::new(window_handle);
-
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
-            ..Default::default()
-        });
-
-        let target = unsafe { wgpu::SurfaceTargetUnsafe::from_window(&window) }.unwrap();
-        let surface = unsafe { instance.create_surface_unsafe(target) }.unwrap();
-
-        let adapter =
-            pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptionsBase {
-                power_preference: wgpu::PowerPreference::default(),
-                compatible_surface: Some(&surface),
-                force_fallback_adapter: false,
-            }))
-            .unwrap();
-
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                required_features: wgpu::Features::empty(),
-                memory_hints: wgpu::MemoryHints::default(),
-                required_limits: wgpu::Limits::default(),
-                trace: wgpu::Trace::Off,
-                label: None,
-            })
-            .await
-            .unwrap();
-
-        let caps = surface.get_capabilities(&adapter);
-        let surface_format = caps
-            .formats
-            .iter()
-            .copied()
-            .find(|f| f.is_srgb())
-            .unwrap_or(caps.formats[0]);
-
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
-            width,
-            height,
-            present_mode: caps.present_modes[0],
-            alpha_mode: caps.alpha_modes[0],
-            view_formats: vec![],
-            desired_maximum_frame_latency: 2,
-        };
-        surface.configure(&device, &config);
-
-        let depth_view = Self::make_depth_view(&device, width, height);
+        let gpu_context = GpuContext::new(window_handle, width, height).await;
+        let depth_view = Self::make_depth_view(&gpu_context.device, width, height);
 
         let camera = Camera {
-            aspect: config.width as f32 / config.height as f32,
+            aspect: gpu_context.config.width as f32 / gpu_context.config.height as f32,
             ..Camera::default()
         };
 
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(&camera);
 
-        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Camera buffer"),
-            contents: bytes_of(&camera_uniform),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
+        let camera_buffer =
+            gpu_context
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Camera buffer"),
+                    contents: bytes_of(&camera_uniform),
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                });
 
         let camera_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("Camera BGL"),
-                entries: &[wgpu::BindGroupLayoutEntry {
+            gpu_context
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("Camera BGL"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
+
+        let camera_bind_group = gpu_context
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("Camera bind group"),
+                layout: &camera_bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
+                    resource: camera_buffer.as_entire_binding(),
                 }],
             });
 
-        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Camera bind group"),
-            layout: &camera_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: camera_buffer.as_entire_binding(),
-            }],
-        });
-
-        let sphere_mesh = mesh_builder::make_sphere(&device, 16, 16);
+        let sphere_mesh = mesh_builder::make_sphere(&gpu_context.device, 16, 16);
 
         let mut pipeline_builder = PipelineBuilder::new();
         pipeline_builder.add_buffer_layout(mesh_builder::SphereVertex::get_layout());
         pipeline_builder.add_buffer_layout(FlatAtom::get_instance_layout());
         pipeline_builder.set_shader_module("shaders/shader.wgsl", "vs_main", "fs_main");
-        pipeline_builder.set_pixel_format(config.format);
+        pipeline_builder.set_pixel_format(gpu_context.config.format);
         pipeline_builder.set_depth_format(DEPTH_FORMAT);
         let render_pipeline =
-            pipeline_builder.build_pipeline(&device, &[&camera_bind_group_layout]);
+            pipeline_builder.build_pipeline(&gpu_context.device, &[&camera_bind_group_layout]);
 
         Self {
-            instance,
-            surface,
-            device,
-            queue,
-            config,
-            size,
+            gpu: gpu_context,
             render_pipeline,
             sphere_mesh,
             depth_view,
@@ -197,13 +146,14 @@ impl<'a> State<'a> {
         self.camera.znear = 0.1;
         self.camera.zfar = dist * 4.0;
 
-        let instance_buffer = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Atom instance buffer"),
-                contents: cast_slice(&atoms),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        let instance_buffer =
+            self.gpu
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Atom instance buffer"),
+                    contents: cast_slice(&atoms),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
 
         self.instance_count = atoms.len() as u32;
         self.instance_buffer = Some(instance_buffer);
@@ -218,29 +168,32 @@ impl<'a> State<'a> {
 
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
-            self.size = (width, height);
-            self.config.width = width;
-            self.config.height = height;
-            self.surface.configure(&self.device, &self.config);
+            self.gpu.config.width = width;
+            self.gpu.config.height = height;
+            self.gpu
+                .surface
+                .configure(&self.gpu.device, &self.gpu.config);
 
-            self.depth_view = Self::make_depth_view(&self.device, width, height);
+            self.depth_view = Self::make_depth_view(&self.gpu.device, width, height);
 
             self.camera.aspect = width as f32 / height as f32;
         }
     }
 
     pub fn render(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let frame = self.surface.get_current_texture()?;
+        let frame = self.gpu.surface.get_current_texture()?;
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(&self.camera);
-        self.queue
+        self.gpu
+            .queue
             .write_buffer(&self.camera_buffer, 0, bytes_of(&camera_uniform));
 
         let mut encoder = self
+            .gpu
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
@@ -287,7 +240,7 @@ impl<'a> State<'a> {
             }
         }
 
-        self.queue.submit(std::iter::once(encoder.finish()));
+        self.gpu.queue.submit(std::iter::once(encoder.finish()));
         frame.present();
         Ok(())
     }
