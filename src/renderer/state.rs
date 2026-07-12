@@ -98,7 +98,7 @@ impl<'a> State<'a> {
         self.objects.push(SceneObject::from_molecule(
             &self.gpu.device,
             "Atom instance buffer".to_string(),
-            &mol,
+            mol,
         ));
 
         Ok(())

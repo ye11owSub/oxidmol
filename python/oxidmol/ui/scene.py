@@ -2,8 +2,15 @@ import logging
 import os
 from typing import override
 
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QDragEnterEvent, QDropEvent, QResizeEvent, QShowEvent
+from PySide6.QtCore import QPointF, Qt, QTimer, Signal
+from PySide6.QtGui import (
+    QDragEnterEvent,
+    QDropEvent,
+    QMouseEvent,
+    QResizeEvent,
+    QShowEvent,
+    QWheelEvent,
+)
 from PySide6.QtWidgets import QWidget
 
 from oxidmol.lsd import Molecule, WgpuRenderer
@@ -29,6 +36,9 @@ class WgpuWidget(QWidget):
         self.renderer: WgpuRenderer | None = None
         self._timer = QTimer()
         self._timer.timeout.connect(self._render_frame)
+
+        self._drag_button: Qt.MouseButton | None = None
+        self._last_mouse_pos: QPointF | None = None
 
         self.setAttribute(Qt.WidgetAttribute.WA_PaintOnScreen, True)
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
@@ -106,6 +116,38 @@ class WgpuWidget(QWidget):
             self.molecule_loaded.emit(name)
         except BaseException:
             logger.exception("Failed to upload molecule")
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton, Qt.MouseButton.MiddleButton):
+            self._drag_button = event.button()
+            self._last_mouse_pos = event.position()
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if self.renderer is None or self._last_mouse_pos is None:
+            return
+        pos = event.position()
+        dx = pos.x() - self._last_mouse_pos.x()
+        dy = pos.y() - self._last_mouse_pos.y()
+        self._last_mouse_pos = pos
+
+        if self._drag_button == Qt.MouseButton.LeftButton:
+            self.renderer.orbit(dx, dy)
+        elif self._drag_button in (Qt.MouseButton.RightButton, Qt.MouseButton.MiddleButton):
+            self.renderer.pan(dx, dy)
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: ARG002
+        self._drag_button = None
+        self._last_mouse_pos = None
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:  # noqa: ARG002
+        if self.renderer is not None:
+            self.renderer.reset()
+
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        if self.renderer is None:
+            return
+        delta = event.angleDelta().y() / 120.0
+        self.renderer.zoom(delta)
 
     # ── drag and drop ────────────────────────────────────────────────────────
 
