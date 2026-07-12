@@ -3,21 +3,20 @@ use glam;
 use wgpu::util::DeviceExt;
 
 use crate::{
-    core::{mesh_builder, FlatAtom, Mesh, Molecule},
+    core::Molecule,
     renderer::{
         camera::{Camera, CameraUniform},
         camera_gpu::CameraGpu,
         depth_texture::DepthTexture,
         gpu_context::GpuContext,
-        pipeline::PipelineBuilder,
+        scene_pipeline::ScenePipeline,
     },
     utils::LoadError,
 };
 
 pub struct State<'a> {
     pub gpu: GpuContext<'a>,
-    render_pipeline: wgpu::RenderPipeline,
-    sphere_mesh: Mesh,
+    pipeline: ScenePipeline,
     depth: DepthTexture,
     pub camera: Camera,
     camera_gpu: CameraGpu,
@@ -57,21 +56,15 @@ impl<'a> State<'a> {
 
         let camera_gpu = CameraGpu::new(&gpu_context.device, &camera_bind_group_layout);
 
-        let sphere_mesh = mesh_builder::make_sphere(&gpu_context.device, 16, 16);
-
-        let mut pipeline_builder = PipelineBuilder::new();
-        pipeline_builder.add_buffer_layout(mesh_builder::SphereVertex::get_layout());
-        pipeline_builder.add_buffer_layout(FlatAtom::get_instance_layout());
-        pipeline_builder.set_shader_module("shaders/shader.wgsl", "vs_main", "fs_main");
-        pipeline_builder.set_pixel_format(gpu_context.config.format);
-        pipeline_builder.set_depth_format(depth_view.format());
-        let render_pipeline =
-            pipeline_builder.build_pipeline(&gpu_context.device, &[&camera_bind_group_layout]);
+        let pipeline = ScenePipeline::new(
+            &gpu_context.device,
+            gpu_context.config.format,
+            &camera_bind_group_layout,
+        );
 
         Self {
             gpu: gpu_context,
-            render_pipeline,
-            sphere_mesh,
+            pipeline,
             depth: depth_view,
             camera,
             camera_gpu,
@@ -178,15 +171,19 @@ impl<'a> State<'a> {
             });
 
             if let Some(inst_buf) = &self.instance_buffer {
-                rp.set_pipeline(&self.render_pipeline);
+                rp.set_pipeline(&self.pipeline.render_pipeline);
                 rp.set_bind_group(0, self.camera_gpu.bind_group(), &[]);
-                rp.set_vertex_buffer(0, self.sphere_mesh.vertex_buffer.slice(..));
+                rp.set_vertex_buffer(0, self.pipeline.sphere_mesh.vertex_buffer.slice(..));
                 rp.set_index_buffer(
-                    self.sphere_mesh.index_buffer.slice(..),
+                    self.pipeline.sphere_mesh.index_buffer.slice(..),
                     wgpu::IndexFormat::Uint16,
                 );
                 rp.set_vertex_buffer(1, inst_buf.slice(..));
-                rp.draw_indexed(0..self.sphere_mesh.index_count, 0, 0..self.instance_count);
+                rp.draw_indexed(
+                    0..self.pipeline.sphere_mesh.index_count,
+                    0,
+                    0..self.instance_count,
+                );
             }
         }
 

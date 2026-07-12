@@ -4,7 +4,7 @@ pub struct DepthTexture {
 }
 
 impl DepthTexture {
-    const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+    pub(crate) const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
     pub fn new(device: &wgpu::Device, width: u32, height: u32) -> Self {
         Self {
