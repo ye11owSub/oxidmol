@@ -1,6 +1,4 @@
-use bytemuck::cast_slice;
 use glam;
-use wgpu::util::DeviceExt;
 
 use crate::{
     core::Molecule,
@@ -9,6 +7,7 @@ use crate::{
         camera_gpu::CameraGpu,
         depth_texture::DepthTexture,
         gpu_context::GpuContext,
+        scene_object::SceneObject,
         scene_pipeline::ScenePipeline,
     },
     utils::LoadError,
@@ -20,8 +19,7 @@ pub struct State<'a> {
     depth: DepthTexture,
     pub camera: Camera,
     camera_gpu: CameraGpu,
-    instance_buffer: Option<wgpu::Buffer>,
-    instance_count: u32,
+    objects: Vec<SceneObject>,
 }
 
 impl<'a> State<'a> {
@@ -68,17 +66,14 @@ impl<'a> State<'a> {
             depth: depth_view,
             camera,
             camera_gpu,
-            instance_buffer: None,
-            instance_count: 0,
+            objects: Vec::new(),
         }
     }
 
     pub fn upload_molecule(&mut self, mol: &Molecule) -> Result<(), LoadError> {
-        let atoms = mol.atoms_flat.clone();
+        let atoms = &mol.atoms_flat;
 
         if atoms.is_empty() {
-            self.instance_buffer = None;
-            self.instance_count = 0;
             return Ok(());
         }
 
@@ -100,17 +95,11 @@ impl<'a> State<'a> {
         self.camera.znear = 0.1;
         self.camera.zfar = dist * 4.0;
 
-        let instance_buffer =
-            self.gpu
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Atom instance buffer"),
-                    contents: cast_slice(&atoms),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
-
-        self.instance_count = atoms.len() as u32;
-        self.instance_buffer = Some(instance_buffer);
+        self.objects.push(SceneObject::from_molecule(
+            &self.gpu.device,
+            "Atom instance buffer".to_string(),
+            &mol,
+        ));
 
         Ok(())
     }
@@ -142,12 +131,7 @@ impl<'a> State<'a> {
 
         self.camera_gpu.upload(&self.gpu.queue, &self.camera);
 
-        let mut encoder = self
-            .gpu
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
+        let mut encoder = self.gpu.device.create_command_encoder(&Default::default());
 
         {
             let mut rp = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -170,20 +154,16 @@ impl<'a> State<'a> {
                 timestamp_writes: None,
             });
 
-            if let Some(inst_buf) = &self.instance_buffer {
-                rp.set_pipeline(&self.pipeline.render_pipeline);
-                rp.set_bind_group(0, self.camera_gpu.bind_group(), &[]);
-                rp.set_vertex_buffer(0, self.pipeline.sphere_mesh.vertex_buffer.slice(..));
-                rp.set_index_buffer(
-                    self.pipeline.sphere_mesh.index_buffer.slice(..),
-                    wgpu::IndexFormat::Uint16,
-                );
-                rp.set_vertex_buffer(1, inst_buf.slice(..));
-                rp.draw_indexed(
-                    0..self.pipeline.sphere_mesh.index_count,
-                    0,
-                    0..self.instance_count,
-                );
+            rp.set_pipeline(&self.pipeline.render_pipeline);
+            rp.set_bind_group(0, &self.camera_gpu.bind_group, &[]);
+            rp.set_vertex_buffer(0, self.pipeline.sphere_mesh.vertex_buffer.slice(..));
+            rp.set_index_buffer(
+                self.pipeline.sphere_mesh.index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
+
+            for object in &self.objects {
+                object.draw(&mut rp, &self.pipeline.sphere_mesh);
             }
         }
 

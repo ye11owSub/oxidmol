@@ -3,7 +3,7 @@ use wgpu::util::DeviceExt;
 
 pub struct CameraGpu {
     pub(crate) buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
+    pub(crate) bind_group: wgpu::BindGroup,
 }
 
 impl CameraGpu {
