@@ -1,4 +1,5 @@
 mod camera;
+mod camera_gpu;
 mod depth_texture;
 mod gpu_context;
 mod pipeline;

@@ -1,4 +1,4 @@
-use bytemuck::{bytes_of, cast_slice};
+use bytemuck::cast_slice;
 use glam;
 use wgpu::util::DeviceExt;
 
@@ -6,6 +6,7 @@ use crate::{
     core::{mesh_builder, FlatAtom, Mesh, Molecule},
     renderer::{
         camera::{Camera, CameraUniform},
+        camera_gpu::CameraGpu,
         depth_texture::DepthTexture,
         gpu_context::GpuContext,
         pipeline::PipelineBuilder,
@@ -17,10 +18,9 @@ pub struct State<'a> {
     pub gpu: GpuContext<'a>,
     render_pipeline: wgpu::RenderPipeline,
     sphere_mesh: Mesh,
-    depth_view: DepthTexture,
+    depth: DepthTexture,
     pub camera: Camera,
-    camera_buffer: wgpu::Buffer,
-    camera_bind_group: wgpu::BindGroup,
+    camera_gpu: CameraGpu,
     instance_buffer: Option<wgpu::Buffer>,
     instance_count: u32,
 }
@@ -37,15 +37,6 @@ impl<'a> State<'a> {
 
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(&camera);
-
-        let camera_buffer =
-            gpu_context
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Camera buffer"),
-                    contents: bytes_of(&camera_uniform),
-                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                });
 
         let camera_bind_group_layout =
             gpu_context
@@ -64,16 +55,7 @@ impl<'a> State<'a> {
                     }],
                 });
 
-        let camera_bind_group = gpu_context
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Camera bind group"),
-                layout: &camera_bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: camera_buffer.as_entire_binding(),
-                }],
-            });
+        let camera_gpu = CameraGpu::new(&gpu_context.device, &camera_bind_group_layout);
 
         let sphere_mesh = mesh_builder::make_sphere(&gpu_context.device, 16, 16);
 
@@ -90,10 +72,9 @@ impl<'a> State<'a> {
             gpu: gpu_context,
             render_pipeline,
             sphere_mesh,
-            depth_view,
+            depth: depth_view,
             camera,
-            camera_buffer,
-            camera_bind_group,
+            camera_gpu,
             instance_buffer: None,
             instance_count: 0,
         }
@@ -154,7 +135,7 @@ impl<'a> State<'a> {
                 .surface
                 .configure(&self.gpu.device, &self.gpu.config);
 
-            self.depth_view.resize(&self.gpu.device, width, height);
+            self.depth.resize(&self.gpu.device, width, height);
 
             self.camera.aspect = width as f32 / height as f32;
         }
@@ -166,11 +147,7 @@ impl<'a> State<'a> {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let mut camera_uniform = CameraUniform::new();
-        camera_uniform.update_view_proj(&self.camera);
-        self.gpu
-            .queue
-            .write_buffer(&self.camera_buffer, 0, bytes_of(&camera_uniform));
+        self.camera_gpu.upload(&self.gpu.queue, &self.camera);
 
         let mut encoder = self
             .gpu
@@ -195,14 +172,14 @@ impl<'a> State<'a> {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: Some(self.depth_view.attachment()),
+                depth_stencil_attachment: Some(self.depth.attachment()),
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
 
             if let Some(inst_buf) = &self.instance_buffer {
                 rp.set_pipeline(&self.render_pipeline);
-                rp.set_bind_group(0, &self.camera_bind_group, &[]);
+                rp.set_bind_group(0, self.camera_gpu.bind_group(), &[]);
                 rp.set_vertex_buffer(0, self.sphere_mesh.vertex_buffer.slice(..));
                 rp.set_index_buffer(
                     self.sphere_mesh.index_buffer.slice(..),
