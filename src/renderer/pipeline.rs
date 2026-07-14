@@ -1,7 +1,5 @@
-use std::{env::current_dir, fs};
-
 pub struct PipelineBuilder {
-    shader_filename: String,
+    shader_source: &'static str,
     vertex_entry: String,
     fragment_entry: String,
     pixel_format: wgpu::TextureFormat,
@@ -18,7 +16,7 @@ impl Default for PipelineBuilder {
 impl PipelineBuilder {
     pub fn new() -> Self {
         PipelineBuilder {
-            shader_filename: "dummy".to_string(),
+            shader_source: "",
             vertex_entry: "dummy".to_string(),
             fragment_entry: "dummy".to_string(),
             pixel_format: wgpu::TextureFormat::Rgba8Unorm,
@@ -29,11 +27,11 @@ impl PipelineBuilder {
 
     pub fn set_shader_module(
         &mut self,
-        shader_filename: &str,
+        shader_source: &'static str,
         vertex_entry: &str,
         fragment_entry: &str,
     ) {
-        self.shader_filename = shader_filename.to_string();
+        self.shader_source = shader_source;
         self.vertex_entry = vertex_entry.to_string();
         self.fragment_entry = fragment_entry.to_string();
     }
@@ -50,25 +48,14 @@ impl PipelineBuilder {
         self.vertex_buffer_layouts.push(layout)
     }
 
-    fn read_shader_soruce(&self) -> String {
-        let mut file_path = current_dir().unwrap();
-        file_path.push("src/");
-        file_path.push(self.shader_filename.as_str());
-        let file_path = file_path.into_os_string().into_string().unwrap();
-
-        fs::read_to_string(file_path).expect("Can't read source code")
-    }
-
     pub fn build_pipeline(
         &mut self,
         device: &wgpu::Device,
         bind_group_layouts: &[&wgpu::BindGroupLayout],
     ) -> wgpu::RenderPipeline {
-        let source_code = self.read_shader_soruce();
-
         let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader Module"),
-            source: wgpu::ShaderSource::Wgsl(source_code.into()),
+            source: wgpu::ShaderSource::Wgsl(self.shader_source.into()),
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -139,7 +126,7 @@ mod tests {
     fn test_pipeline_builder_new() {
         let builder = PipelineBuilder::new();
 
-        assert_eq!(builder.shader_filename, "dummy");
+        assert_eq!(builder.shader_source, "");
         assert_eq!(builder.vertex_entry, "dummy");
         assert_eq!(builder.fragment_entry, "dummy");
         assert_eq!(builder.pixel_format, wgpu::TextureFormat::Rgba8Unorm);
@@ -150,9 +137,9 @@ mod tests {
     fn test_set_shader_module() {
         let mut builder = PipelineBuilder::new();
 
-        builder.set_shader_module("test_shader.wgsl", "vs_main", "fs_main");
+        builder.set_shader_module("@vertex fn vs_main() {}", "vs_main", "fs_main");
 
-        assert_eq!(builder.shader_filename, "test_shader.wgsl");
+        assert_eq!(builder.shader_source, "@vertex fn vs_main() {}");
         assert_eq!(builder.vertex_entry, "vs_main");
         assert_eq!(builder.fragment_entry, "fs_main");
     }
@@ -229,20 +216,19 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_shader_filename() {
+    fn test_empty_shader_source() {
         let mut builder = PipelineBuilder::new();
 
         builder.set_shader_module("", "vs_main", "fs_main");
 
-        assert_eq!(builder.shader_filename, "");
+        assert_eq!(builder.shader_source, "");
     }
 
     #[test]
     fn test_builder_state_consistency() {
         let mut builder = PipelineBuilder::new();
 
-        // Настраиваем builder
-        builder.set_shader_module("complex_shader.wgsl", "vertex_main", "fragment_main");
+        builder.set_shader_module("// complex shader", "vertex_main", "fragment_main");
         builder.set_pixel_format(wgpu::TextureFormat::Rgba16Float);
 
         let layout = wgpu::VertexBufferLayout {
@@ -252,7 +238,7 @@ mod tests {
         };
         builder.add_buffer_layout(layout);
 
-        assert_eq!(builder.shader_filename, "complex_shader.wgsl");
+        assert_eq!(builder.shader_source, "// complex shader");
         assert_eq!(builder.vertex_entry, "vertex_main");
         assert_eq!(builder.fragment_entry, "fragment_main");
         assert_eq!(builder.pixel_format, wgpu::TextureFormat::Rgba16Float);

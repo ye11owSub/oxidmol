@@ -1,4 +1,9 @@
-use crate::utils::QtWindowHandle;
+pub enum SurfaceSource {
+    #[cfg(not(target_arch = "wasm32"))]
+    Window(usize), // Qt winId()
+    #[cfg(target_arch = "wasm32")]
+    Canvas(web_sys::HtmlCanvasElement),
+}
 
 pub struct GpuContext<'a> {
     #[allow(dead_code)]
@@ -11,23 +16,33 @@ pub struct GpuContext<'a> {
 }
 
 impl<'a> GpuContext<'a> {
-    pub async fn new(window_handle: usize, width: u32, height: u32) -> Self {
-        let window = QtWindowHandle::new(window_handle);
-
+    pub async fn new(source: SurfaceSource, width: u32, height: u32) -> Self {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
         });
 
-        let target = unsafe { wgpu::SurfaceTargetUnsafe::from_window(&window) }.unwrap();
-        let surface = unsafe { instance.create_surface_unsafe(target) }.unwrap();
+        let surface = match source {
+            #[cfg(not(target_arch = "wasm32"))]
+            SurfaceSource::Window(handle) => {
+                let window = crate::utils::QtWindowHandle::new(handle);
+                let target = unsafe { wgpu::SurfaceTargetUnsafe::from_window(&window) }.unwrap();
+                unsafe { instance.create_surface_unsafe(target) }.unwrap()
+            }
 
-        let adapter =
-            pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptionsBase {
+            #[cfg(target_arch = "wasm32")]
+            SurfaceSource::Canvas(canvas) => instance
+                .create_surface(wgpu::SurfaceTarget::Canvas(canvas))
+                .unwrap(),
+        };
+
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptionsBase {
                 power_preference: wgpu::PowerPreference::default(),
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
-            }))
+            })
+            .await
             .unwrap();
 
         let (device, queue) = adapter

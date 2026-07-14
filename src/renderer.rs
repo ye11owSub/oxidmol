@@ -9,4 +9,5 @@ mod scene_pipeline;
 pub mod state;
 
 pub use camera::Camera;
+pub use gpu_context::SurfaceSource;
 pub use state::State;

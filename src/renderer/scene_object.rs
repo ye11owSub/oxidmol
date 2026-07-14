@@ -1,4 +1,4 @@
-use crate::core::{Mesh, Molecule};
+use crate::core::{FlatAtom, Mesh};
 use wgpu::util::DeviceExt;
 
 pub struct SceneObject {
@@ -11,17 +11,17 @@ pub struct SceneObject {
 }
 
 impl SceneObject {
-    pub fn from_molecule(device: &wgpu::Device, name: String, mol: &Molecule) -> Self {
+    pub fn from_bytes(device: &wgpu::Device, name: String, bytes: &[u8]) -> Self {
         let sphere_instances = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Atom instances"),
-            contents: bytemuck::cast_slice(&mol.atoms_flat),
+            contents: bytes,
             usage: wgpu::BufferUsages::VERTEX,
         });
         Self {
             name,
             visible: true,
             sphere_instances,
-            sphere_count: mol.atoms_flat.len() as u32,
+            sphere_count: (bytes.len() / std::mem::size_of::<FlatAtom>()) as u32,
             bond_instances: None,
             bond_count: 0,
         }

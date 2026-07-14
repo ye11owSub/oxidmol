@@ -1,7 +1,9 @@
 use crate::core::element::Element;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::utils::LoadError;
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
+#[cfg(not(target_arch = "wasm32"))]
 use pdbtbx::StrictnessLevel;
 use wgpu;
 
@@ -137,12 +139,14 @@ impl Molecule {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn load(path: &str) -> Result<Molecule, LoadError> {
         let (pdb, _errors) = pdbtbx::open(path, StrictnessLevel::Loose)
             .map_err(|e| LoadError::Pdb(format!("{e:?}")))?;
         Self::from_pdb(pdb)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn load_str(content: &str) -> Result<Molecule, LoadError> {
         use std::io::{BufReader, Cursor};
         let reader = BufReader::new(Cursor::new(content.as_bytes().to_vec()));
@@ -151,6 +155,7 @@ impl Molecule {
         Self::from_pdb(pdb)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn from_pdb(pdb: pdbtbx::PDB) -> Result<Molecule, LoadError> {
         let chains = pdb
             .chains()

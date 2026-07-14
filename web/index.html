@@ -1,0 +1,21 @@
+<canvas id="c" width="800" height="600"></canvas>
+<script type="module">
+  import init, { Viewer } from "./pkg/oxidmol_render.js";
+  await init();
+
+  const canvas = document.getElementById("c");
+  const viewer = await Viewer.create(canvas, 800, 600);
+
+  const bytes = new Uint8Array(await (await fetch("./crambin.bin")).arrayBuffer());
+  viewer.load_atoms(bytes);
+
+  const frame = () => { viewer.render(); requestAnimationFrame(frame); };
+  requestAnimationFrame(frame);
+
+  let down = false;
+  canvas.onmousedown = () => down = true;
+  window.onmouseup   = () => down = false;
+  canvas.onmousemove = (e) => { if (down) viewer.orbit(e.movementX * 0.1, e.movementY * 0.1); };
+  canvas.onwheel     = (e) => { viewer.zoom(-e.deltaY * 0.1); e.preventDefault(); };
+</script>
+

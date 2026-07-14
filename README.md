@@ -1,8 +1,5 @@
 # OxidMol
-
-Molecular visualization tool inspired by PyMOL, built from the ground up on modern technology: a Rust/WebGPU rendering core exposed to Python via PyO3, with a PyQt6 UI on top.
-
-The goal is a fast, hackable, open-source visualizer — GPU-accelerated rendering without legacy baggage, a scriptable Python interface, and a clean architecture that's easy to extend.
+## Install
 
 ```bash
 pip install oxidmol
@@ -14,11 +11,21 @@ pip install oxidmol
 git clone https://github.com/ye11owSub/oxidmol
 cd oxidmol
 uv sync --group dev
-uv run maturin develop
+uv run maturin develop   # rebuild the Rust extension after any src/**/*.rs change
 uv run oxidmol
 ```
 
 ```bash
-cargo test
-uv run pytest -m "not gpu"
+cargo test                 # Rust unit tests
+uv run pytest -m "not gpu" # Python tests (GPU-marked tests need a real adapter)
+uv run ruff check . && uv run mypy
+```
+
+## Web (wasm) build
+
+The same Rust engine compiles to WebAssembly and renders into an HTML `<canvas>` via WebGPU (WebGL2 fallback) — no Python, no server.
+
+```bash
+wasm-pack build --target web --out-dir web/pkg
+cd web && python3 -m http.server
 ```

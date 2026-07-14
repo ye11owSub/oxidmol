@@ -1,12 +1,12 @@
 use glam;
 
 use crate::{
-    core::Molecule,
+    core::{FlatAtom, Molecule},
     renderer::{
         camera::{Camera, CameraUniform},
         camera_gpu::CameraGpu,
         depth_texture::DepthTexture,
-        gpu_context::GpuContext,
+        gpu_context::{GpuContext, SurfaceSource},
         scene_object::SceneObject,
         scene_pipeline::ScenePipeline,
     },
@@ -23,8 +23,8 @@ pub struct State<'a> {
 }
 
 impl<'a> State<'a> {
-    pub async fn new(window_handle: usize, width: u32, height: u32) -> Self {
-        let gpu_context = GpuContext::new(window_handle, width, height).await;
+    pub async fn new(source: SurfaceSource, width: u32, height: u32) -> Self {
+        let gpu_context = GpuContext::new(source, width, height).await;
         let depth_view = DepthTexture::new(&gpu_context.device, width, height);
 
         let camera = Camera {
@@ -70,13 +70,7 @@ impl<'a> State<'a> {
         }
     }
 
-    pub fn upload_molecule(&mut self, mol: &Molecule) -> Result<(), LoadError> {
-        let atoms = &mol.atoms_flat;
-
-        if atoms.is_empty() {
-            return Ok(());
-        }
-
+    fn frame_camera(&mut self, atoms: &[FlatAtom]) {
         // Bounding sphere: center + max radius
         let center = atoms
             .iter()
@@ -94,16 +88,27 @@ impl<'a> State<'a> {
         self.camera.up = glam::Vec3::Y;
         self.camera.znear = 0.1;
         self.camera.zfar = dist * 4.0;
+    }
 
-        self.objects.push(SceneObject::from_molecule(
+    pub fn upload_atom_bytes(&mut self, bytes: &[u8]) -> Result<(), LoadError> {
+        let atoms: &[FlatAtom] = bytemuck::cast_slice(bytes);
+        if atoms.is_empty() {
+            return Ok(());
+        }
+        self.frame_camera(atoms);
+        self.objects.push(SceneObject::from_bytes(
             &self.gpu.device,
-            "Atom instance buffer".to_string(),
-            &mol,
+            "object".into(),
+            bytes,
         ));
-
         Ok(())
     }
 
+    pub fn upload_molecule(&mut self, mol: &Molecule) -> Result<(), LoadError> {
+        self.upload_atom_bytes(bytemuck::cast_slice(&mol.atoms_flat))
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn load_molecule(&mut self, path: &str) -> Result<(), LoadError> {
         let mol = Molecule::load(path)?;
         self.upload_molecule(&mol)

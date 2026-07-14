@@ -4,7 +4,7 @@ use pyo3::types::{PyDict, PyDictMethods};
 use pyo3::{pyclass, pyfunction, pymethods};
 
 use crate::python::molecule::PyMolecule;
-use crate::renderer::State;
+use crate::renderer::{State, SurfaceSource};
 use crate::utils::error::WgpuError;
 
 #[pyfunction]
@@ -40,7 +40,11 @@ impl WgpuRenderer {
     #[new]
     #[pyo3(signature = (window_handle, *, width = 800, height = 600))]
     pub fn new(window_handle: usize, width: u32, height: u32) -> PyResult<Self> {
-        let inner = pollster::block_on(State::new(window_handle, width, height));
+        let inner = pollster::block_on(State::new(
+            SurfaceSource::Window(window_handle),
+            width,
+            height,
+        ));
 
         Ok(Self { inner })
     }
