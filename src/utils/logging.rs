@@ -81,13 +81,12 @@ mod tests {
 
     #[test]
     fn test_scope_timer_logging_integration() {
-        // Этот тест сложнее реализовать без захвата логов
-        // Но можем проверить, что таймер не паникует при дропе
+        // Hard to assert on the log output without capturing it,
+        // but we can check that the timer does not panic on drop
         {
             let _timer = ScopeTimer::new("integration_test");
-            // Таймер будет дропнут в конце блока
+            // The timer is dropped at the end of the block
         }
-        // Если мы дошли до этой точки, значит drop прошел без паники
-        assert!(true);
+        // Reaching this point means the drop did not panic
     }
 }

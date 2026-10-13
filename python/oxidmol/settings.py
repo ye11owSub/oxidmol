@@ -19,7 +19,7 @@ class RenderSettings(BaseModel):
     depth_cue: bool = True
     antialias: int = Field(2, ge=1, le=4)
 
-    # Можно добавить валидатор для конкретных значений
+    # A validator can restrict the allowed values
     @field_validator("antialias")
     @classmethod
     def antialias_must_be_power_of_two(cls, v: int) -> int:
@@ -53,7 +53,7 @@ class Settings(BaseModel):
     fetch: FetchSettings = Field(default_factory=FetchSettings)
     session: SessionSettings = Field(default_factory=SessionSettings)
 
-    model_config = {"validate_assignment": True}  # валидация при set
+    model_config = {"validate_assignment": True}  # validate on assignment
 
     @classmethod
     def load(cls) -> Self:
@@ -64,7 +64,7 @@ class Settings(BaseModel):
         with open(SETTINGS_PATH, "rb") as f:
             data = tomllib.load(f)
 
-        # model_validate заменяет весь наш _load_toml + _coerce
+        # model_validate replaces our whole _load_toml + _coerce
         return cls.model_validate(data)
 
     def get(self, key: str) -> object:

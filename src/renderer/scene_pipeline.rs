@@ -19,11 +19,16 @@ impl ScenePipeline {
         let mut pipeline_builder = PipelineBuilder::new();
         pipeline_builder.add_buffer_layout(mesh_builder::SphereVertex::get_layout());
         pipeline_builder.add_buffer_layout(FlatAtom::get_instance_layout());
-        pipeline_builder.set_shader_module("shaders/shader.wgsl", "vs_main", "fs_main");
+        pipeline_builder.set_shader_module(
+            include_str!("../shaders/shader.wgsl"),
+            "vs_main",
+            "fs_main",
+        );
         pipeline_builder.set_pixel_format(pixel_format);
         pipeline_builder.set_depth_format(DepthTexture::FORMAT);
 
-        let render_pipeline = pipeline_builder.build_pipeline(device, &[camera_bind_group_layout]);
+        let render_pipeline =
+            pipeline_builder.build_pipeline(device, &[Some(camera_bind_group_layout)]);
 
         Self {
             render_pipeline,

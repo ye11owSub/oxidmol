@@ -30,6 +30,7 @@ impl CameraGpu {
         queue.write_buffer(&self.buffer, 0, bytemuck::bytes_of(&uniform));
     }
 
+    #[allow(dead_code)]
     pub fn bind_group(&self) -> &wgpu::BindGroup {
         &self.bind_group
     }

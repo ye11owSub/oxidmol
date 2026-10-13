@@ -37,7 +37,7 @@ fn init_logging() {
 
     #[cfg(not(debug_assertions))]
     {
-        // В release режиме только ошибки
+        // Release builds log errors only
         std::env::set_var("RUST_LOG", "error");
         env_logger::init();
     }

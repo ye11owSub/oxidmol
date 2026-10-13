@@ -138,15 +138,26 @@ impl Molecule {
     }
 
     pub fn load(path: &str) -> Result<Molecule, LoadError> {
-        let (pdb, _errors) = pdbtbx::open(path, StrictnessLevel::Loose)
+        let (pdb, _errors) = pdbtbx::ReadOptions::default()
+            .set_level(StrictnessLevel::Loose)
+            .read(path)
             .map_err(|e| LoadError::Pdb(format!("{e:?}")))?;
         Self::from_pdb(pdb)
     }
 
     pub fn load_str(content: &str) -> Result<Molecule, LoadError> {
         use std::io::{BufReader, Cursor};
+        // mmCIF starts with a `data_` block, PDB records never do
+        let format = if content.lines().any(|l| l.starts_with("data_")) {
+            pdbtbx::Format::Mmcif
+        } else {
+            pdbtbx::Format::Pdb
+        };
         let reader = BufReader::new(Cursor::new(content.as_bytes().to_vec()));
-        let (pdb, _errors) = pdbtbx::open_raw(reader, StrictnessLevel::Loose)
+        let (pdb, _errors) = pdbtbx::ReadOptions::default()
+            .set_level(StrictnessLevel::Loose)
+            .set_format(format)
+            .read_raw(reader)
             .map_err(|e| LoadError::Pdb(format!("{e:?}")))?;
         Self::from_pdb(pdb)
     }

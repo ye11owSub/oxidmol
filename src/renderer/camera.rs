@@ -11,13 +11,6 @@ pub struct Camera {
     pub(crate) zfar: f32,
 }
 
-const OPENGL_TO_WGPU_MATRIX: glam::Mat4 = glam::Mat4::from_cols_array_2d(&[
-    [1.0, 0.0, 0.0, 0.0],
-    [0.0, 1.0, 0.0, 0.0],
-    [0.0, 0.0, 0.5, 0.0],
-    [0.0, 0.0, 0.5, 1.0],
-]);
-
 impl Default for Camera {
     fn default() -> Self {
         Self {
@@ -34,10 +27,15 @@ impl Default for Camera {
 
 impl Camera {
     fn build_view_pojection_matrix(&self) -> Mat4 {
-        let view = Mat4::look_at_rh(self.eye, self.target, self.up);
-        let proj = Mat4::perspective_rh(self.fovy.to_radians(), self.aspect, self.znear, self.zfar);
+        let view = glam::camera::rh::view::look_at_mat4(self.eye, self.target, self.up);
+        let proj = glam::camera::rh::proj::directx::perspective(
+            self.fovy.to_radians(),
+            self.aspect,
+            self.znear,
+            self.zfar,
+        );
 
-        OPENGL_TO_WGPU_MATRIX * proj * view
+        proj * view
     }
 
     pub fn reset(&mut self) {
@@ -110,5 +108,39 @@ impl CameraUniform {
 
     pub(crate) fn update_view_proj(&mut self, camera: &Camera) {
         self.view_proj = camera.build_view_pojection_matrix().to_cols_array_2d();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+    use glam::Vec4;
+
+    fn ndc(camera: &Camera, point: Vec3) -> Vec3 {
+        let clip = camera.build_view_pojection_matrix() * Vec4::from((point, 1.0));
+        clip.truncate() / clip.w
+    }
+
+    #[test]
+    fn test_depth_range_matches_wgpu() {
+        let camera = Camera::default();
+        let forward = (camera.target - camera.eye).normalize();
+
+        let near = ndc(&camera, camera.eye + forward * camera.znear);
+        let far = ndc(&camera, camera.eye + forward * camera.zfar);
+
+        assert_relative_eq!(near.z, 0.0, epsilon = 1e-4);
+        assert_relative_eq!(far.z, 1.0, epsilon = 1e-4);
+    }
+
+    #[test]
+    fn test_y_axis_points_up_in_ndc() {
+        let camera = Camera::default();
+
+        let above = ndc(&camera, Vec3::new(0.0, 0.5, 0.0));
+        let below = ndc(&camera, Vec3::new(0.0, -0.5, 0.0));
+
+        assert!(above.y > below.y);
     }
 }

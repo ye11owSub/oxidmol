@@ -1,106 +1,30 @@
-use glam;
-
 use crate::{
     core::Molecule,
-    renderer::{
-        camera::{Camera, CameraUniform},
-        camera_gpu::CameraGpu,
-        depth_texture::DepthTexture,
-        gpu_context::GpuContext,
-        scene_object::SceneObject,
-        scene_pipeline::ScenePipeline,
-    },
-    utils::LoadError,
+    renderer::{gpu_context::GpuContext, scene::Scene},
+    utils::{error::WgpuError, LoadError},
 };
 
+/// A scene bound to a window surface.
 pub struct State<'a> {
     pub gpu: GpuContext<'a>,
-    pipeline: ScenePipeline,
-    depth: DepthTexture,
-    pub camera: Camera,
-    camera_gpu: CameraGpu,
-    objects: Vec<SceneObject>,
+    pub scene: Scene,
 }
 
 impl<'a> State<'a> {
-    pub async fn new(window_handle: usize, width: u32, height: u32) -> Self {
-        let gpu_context = GpuContext::new(window_handle, width, height).await;
-        let depth_view = DepthTexture::new(&gpu_context.device, width, height);
-
-        let camera = Camera {
-            aspect: gpu_context.config.width as f32 / gpu_context.config.height as f32,
-            ..Camera::default()
-        };
-
-        let mut camera_uniform = CameraUniform::new();
-        camera_uniform.update_view_proj(&camera);
-
-        let camera_bind_group_layout =
-            gpu_context
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Camera BGL"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-
-        let camera_gpu = CameraGpu::new(&gpu_context.device, &camera_bind_group_layout);
-
-        let pipeline = ScenePipeline::new(
-            &gpu_context.device,
-            gpu_context.config.format,
-            &camera_bind_group_layout,
+    pub async fn new(window_handle: usize, width: u32, height: u32) -> Result<Self, WgpuError> {
+        let gpu = GpuContext::new(window_handle, width, height).await?;
+        let scene = Scene::new(
+            &gpu.device,
+            gpu.config.format,
+            gpu.config.width,
+            gpu.config.height,
         );
 
-        Self {
-            gpu: gpu_context,
-            pipeline,
-            depth: depth_view,
-            camera,
-            camera_gpu,
-            objects: Vec::new(),
-        }
+        Ok(Self { gpu, scene })
     }
 
     pub fn upload_molecule(&mut self, mol: &Molecule) -> Result<(), LoadError> {
-        let atoms = &mol.atoms_flat;
-
-        if atoms.is_empty() {
-            return Ok(());
-        }
-
-        // Bounding sphere: center + max radius
-        let center = atoms
-            .iter()
-            .fold(glam::Vec3::ZERO, |acc, a| acc + a.position)
-            / atoms.len() as f32;
-        let max_r = atoms
-            .iter()
-            .map(|a| (a.position - center).length() + a.radius)
-            .fold(0.0_f32, f32::max);
-
-        let fov_y = self.camera.fovy.to_radians();
-        let dist = max_r / (fov_y * 0.5).tan() + max_r;
-        self.camera.target = center;
-        self.camera.eye = center + glam::Vec3::new(0.0, 0.0, dist);
-        self.camera.up = glam::Vec3::Y;
-        self.camera.znear = 0.1;
-        self.camera.zfar = dist * 4.0;
-
-        self.objects.push(SceneObject::from_molecule(
-            &self.gpu.device,
-            "Atom instance buffer".to_string(),
-            &mol,
-        ));
-
+        self.scene.add_molecule(&self.gpu.device, mol);
         Ok(())
     }
 
@@ -116,59 +40,33 @@ impl<'a> State<'a> {
             self.gpu
                 .surface
                 .configure(&self.gpu.device, &self.gpu.config);
-
-            self.depth.resize(&self.gpu.device, width, height);
-
-            self.camera.aspect = width as f32 / height as f32;
+            self.scene.resize(&self.gpu.device, width, height);
         }
     }
 
     pub fn render(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let frame = self.gpu.surface.get_current_texture()?;
+        let frame = match self.gpu.surface.get_current_texture() {
+            wgpu::CurrentSurfaceTexture::Success(frame)
+            | wgpu::CurrentSurfaceTexture::Suboptimal(frame) => frame,
+            wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
+                self.gpu
+                    .surface
+                    .configure(&self.gpu.device, &self.gpu.config);
+                return Ok(());
+            }
+            wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
+                return Ok(());
+            }
+            wgpu::CurrentSurfaceTexture::Validation => {
+                return Err("surface validation error".into());
+            }
+        };
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        self.camera_gpu.upload(&self.gpu.queue, &self.camera);
-
-        let mut encoder = self.gpu.device.create_command_encoder(&Default::default());
-
-        {
-            let mut rp = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.05,
-                            g: 0.05,
-                            b: 0.10,
-                            a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(self.depth.attachment()),
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
-
-            rp.set_pipeline(&self.pipeline.render_pipeline);
-            rp.set_bind_group(0, &self.camera_gpu.bind_group, &[]);
-            rp.set_vertex_buffer(0, self.pipeline.sphere_mesh.vertex_buffer.slice(..));
-            rp.set_index_buffer(
-                self.pipeline.sphere_mesh.index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
-
-            for object in &self.objects {
-                object.draw(&mut rp, &self.pipeline.sphere_mesh);
-            }
-        }
-
-        self.gpu.queue.submit(std::iter::once(encoder.finish()));
-        frame.present();
+        self.scene.render(&self.gpu.device, &self.gpu.queue, &view);
+        self.gpu.queue.present(frame);
         Ok(())
     }
 }

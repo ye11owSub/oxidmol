@@ -18,6 +18,12 @@ pub enum LoadError {
 
 #[derive(Error, Debug)]
 pub enum WgpuError {
+    #[error("Invalid native window handle: {0}")]
+    InvalidWindowHandle(&'static str),
+
+    #[error("Native window handles are not supported on this platform")]
+    UnsupportedPlatform,
+
     #[error("Failed to create surface: {0}")]
     SurfaceCreation(String),
 
