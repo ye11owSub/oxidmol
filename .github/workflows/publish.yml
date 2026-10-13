@@ -23,7 +23,7 @@ env:
 jobs:
   checks:
     name: Checks
-    uses: ./.github/workflows/ci.yml
+    uses: ./.github/workflows/CI.yml
 
   linux:
     name: Wheels (manylinux ${{ matrix.platform.target }})
