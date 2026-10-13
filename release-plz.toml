@@ -1,6 +1,9 @@
 [workspace]
 pr_labels = ["release"]
 changelog_config = "cliff.toml"
+# The crate is a cdylib that ships inside the Python wheels, so it is not published to crates.io.
+# Versions come from git tags; the wheels are published to PyPI by CI.yml.
+git_only = true
 
 [[package]]
 name = "oxidmol-render"
