@@ -23,7 +23,7 @@ dependencies = [
     "httpx>=0.28.1",
     "lark>=1.3.1",
     "pydantic>=2.13.3",
-    "pyside6>=6.9.1",
+    "pyside6>=6.9.1,<6.12",
     "tomli-w>=1.2.0",
     "typer>=0.25.0",
 ]

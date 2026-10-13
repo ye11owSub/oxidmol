@@ -1,5 +1,6 @@
 pub struct DepthTexture {
     view: wgpu::TextureView,
+    #[allow(dead_code)]
     format: wgpu::TextureFormat,
 }
 
@@ -17,6 +18,7 @@ impl DepthTexture {
         self.view = Self::make_view(device, width, height);
     }
 
+    #[allow(dead_code)]
     pub fn format(&self) -> wgpu::TextureFormat {
         self.format
     }

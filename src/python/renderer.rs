@@ -9,7 +9,7 @@ use crate::utils::error::WgpuError;
 
 #[pyfunction]
 pub fn get_backend_info() -> PyResult<Py<PyDict>> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let dict = PyDict::new(py);
         dict.set_item("backend", "wgpu")?;
         dict.set_item("version", env!("CARGO_PKG_VERSION"))?;
@@ -40,7 +40,12 @@ impl WgpuRenderer {
     #[new]
     #[pyo3(signature = (window_handle, *, width = 800, height = 600))]
     pub fn new(window_handle: usize, width: u32, height: u32) -> PyResult<Self> {
-        let inner = pollster::block_on(State::new(window_handle, width, height));
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to create runtime: {}", e)))?;
+        let inner = runtime
+            .block_on(State::new(window_handle, width, height))
+            .map_err(PyErr::from)?;
 
         Ok(Self { inner })
     }
@@ -57,16 +62,16 @@ impl WgpuRenderer {
     }
 
     fn reset(&mut self) {
-        self.inner.camera.reset();
+        self.inner.scene.camera.reset();
     }
     fn zoom(&mut self, delta: f32) {
-        self.inner.camera.zoom(delta);
+        self.inner.scene.camera.zoom(delta);
     }
     fn orbit(&mut self, dx: f32, dy: f32) {
-        self.inner.camera.orbit(dx, dy);
+        self.inner.scene.camera.orbit(dx, dy);
     }
     fn pan(&mut self, dx: f32, dy: f32) {
-        self.inner.camera.pan(dx, dy);
+        self.inner.scene.camera.pan(dx, dy);
     }
 
     /// Load a PDB or mmCIF file (.pdb / .cif) and upload atoms to the GPU.

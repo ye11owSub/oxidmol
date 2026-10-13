@@ -8,6 +8,7 @@ jobs:
   release-pr:
     name: Create release PR
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     concurrency:
       group: release-plz-pr
       cancel-in-progress: false
@@ -29,6 +30,7 @@ jobs:
   release:
     name: Publish to crates.io
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     concurrency:
       group: release-plz-release
       cancel-in-progress: false

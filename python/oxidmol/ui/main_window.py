@@ -1,5 +1,6 @@
 from lark import Lark, UnexpectedInput
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QFileDialog,
     QMainWindow,
@@ -15,45 +16,7 @@ from oxidmol.ui.command_bar import CommandBar
 from oxidmol.ui.menu import ActionToolBar, Menu
 from oxidmol.ui.object_panel import ObjectPanel
 from oxidmol.ui.scene import WgpuWidget
-
-_WINDOW_STYLE = """
-QMainWindow {
-    background: #1c1c1c;
-}
-QMenuBar {
-    background: #1e1e1e;
-    color: #c8c8c8;
-    border-bottom: 1px solid #333333;
-}
-QMenuBar::item {
-    background: transparent;
-    padding: 4px 10px;
-}
-QMenuBar::item:selected {
-    background: #2e2e2e;
-}
-QMenu {
-    background: #252525;
-    color: #c8c8c8;
-    border: 1px solid #3a3a3a;
-}
-QMenu::item:selected {
-    background: #3a5a8a;
-}
-QScrollBar:vertical {
-    background: #1a1a1a;
-    width: 8px;
-    border: none;
-}
-QScrollBar::handle:vertical {
-    background: #404040;
-    border-radius: 4px;
-    min-height: 20px;
-}
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-    height: 0;
-}
-"""
+from oxidmol.ui.theme import STYLESHEET
 
 
 class MainWindow(QMainWindow):
@@ -61,7 +24,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("OxidMol")
         self.setGeometry(100, 100, 1280, 800)
-        self.setStyleSheet(_WINDOW_STYLE)
+        self.setMinimumSize(960, 600)
+        self.setStyleSheet(STYLESHEET)
 
         self._parser = Lark(GRAMMAR, parser="earley", start="program")
         self._transformer = CordycepsTransformer()
@@ -80,8 +44,8 @@ class MainWindow(QMainWindow):
 
         # ── horizontal splitter: viewport | object panel ────────────────────
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setHandleWidth(2)
-        splitter.setStyleSheet("QSplitter::handle { background: #333333; }")
+        splitter.setHandleWidth(1)
+        splitter.setChildrenCollapsible(False)
 
         self.wgpu_widget = WgpuWidget()
         splitter.addWidget(self.wgpu_widget)
@@ -101,6 +65,7 @@ class MainWindow(QMainWindow):
 
         # ── wiring ──────────────────────────────────────────────────────────
         self.wgpu_widget.molecule_loaded.connect(self._on_molecule_loaded)
+        self.wgpu_widget.error_occurred.connect(self._on_viewport_error)
         self.command_bar.command_entered.connect(self._on_command)
         self._menu.open_action.triggered.connect(self.open_file)
         self._menu.quit_action.triggered.connect(self.close)
@@ -110,6 +75,14 @@ class MainWindow(QMainWindow):
     def _on_molecule_loaded(self, name: str) -> None:
         self.object_panel.add_object(name)
         self.command_bar.print(f" Loaded: {name}")
+
+    def _on_viewport_error(self, message: str) -> None:
+        self.command_bar.print(f" Error: {message}")
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        # the GPU surface must go before the native window it draws into
+        self.wgpu_widget.release_renderer()
+        super().closeEvent(event)
 
     def _on_command(self, cmd: str) -> None:
         try:

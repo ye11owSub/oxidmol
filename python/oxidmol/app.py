@@ -5,6 +5,8 @@ from oxidmol.ui.main_window import MainWindow
 
 def main() -> None:
     app = QApplication([])
+    app.setApplicationName("OxidMol")
+    app.setStyle("Fusion")  # the stylesheet looks the same on every platform
     window = MainWindow()
     window.show()
     app.exec()

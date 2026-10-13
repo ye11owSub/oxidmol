@@ -1,6 +1,7 @@
 use crate::core::{Mesh, Molecule};
 use wgpu::util::DeviceExt;
 
+#[allow(dead_code)]
 pub struct SceneObject {
     pub name: String,
     pub visible: bool,

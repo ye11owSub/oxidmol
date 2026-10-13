@@ -8,23 +8,24 @@ name = "oxidmol_render"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.25.0"
+pyo3 = "0.29.3"
 # graphics
-wgpu = "25.0.2"
+wgpu = "30.0.1"
 raw-window-handle = "0.6.2"
-pollster = "0.4.0"
+# async
+tokio = { version = "1", default-features = false, features = ["rt"] }
 # chemistry
-pdbtbx = "0.11"
+pdbtbx = "0.12"
 # error handling
-thiserror = "2.0.16"
+thiserror = "2.0.21"
 # math
-glam = { version = "0.30.7", features = ["bytemuck"] }
+glam = { version = "0.34.1", features = ["bytemuck"] }
 # logger
-log = "0.4.28"
-env_logger = "0.11.8"
+log = "0.4.34"
+env_logger = "0.11.11"
 # timer
-chrono = "0.4.42"
-bytemuck = "1.25.0"
+chrono = "0.4.45"
+bytemuck = "1.25.2"
 
 [dev-dependencies]
 approx = "0.5.1"
