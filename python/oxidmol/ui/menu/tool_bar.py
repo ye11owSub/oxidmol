@@ -10,43 +10,6 @@ from PySide6.QtWidgets import (
     QWidgetAction,
 )
 
-_TOOLBAR_STYLE = """
-QToolBar {
-    background: #1e1e1e;
-    border: none;
-    border-bottom: 1px solid #333333;
-    padding: 0;
-    spacing: 0;
-}
-QToolButton#TBtn {
-    color: #c8c8c8;
-    background: transparent;
-    border: 1px solid transparent;
-    padding: 4px 9px;
-    font-size: 11px;
-}
-QToolButton#TBtn:hover {
-    background: #2e2e2e;
-    border-color: #444444;
-}
-QToolButton#TBtn:pressed,
-QToolButton#TBtn:checked {
-    background: #3a3a3a;
-    border-color: #555555;
-    color: #ffffff;
-}
-QToolButton#TBtn:disabled {
-    color: #555555;
-}
-QFrame#VSep {
-    background: #383838;
-    border: none;
-    min-width: 1px;
-    max-width: 1px;
-    margin: 5px 3px;
-}
-"""
-
 
 class ActionToolBar(QToolBar):
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -56,7 +19,6 @@ class ActionToolBar(QToolBar):
         self.setIconSize(QSize(16, 16))
         self.setContentsMargins(2, 0, 2, 0)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
-        self.setStyleSheet(_TOOLBAR_STYLE)
 
         style = self.style()
         assert style is not None
@@ -131,6 +93,7 @@ class ActionToolBar(QToolBar):
         btn = QToolButton()
         btn.setText(text)
         btn.setObjectName("TBtn")
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
         if icon is not None:
             btn.setIcon(icon)
             btn.setToolButtonStyle(
